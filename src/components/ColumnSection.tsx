@@ -277,20 +277,6 @@ export default function ColumnSection({
     }
   }, [columnId]);
 
-  // Get column icon
-  const columnIcon = useMemo(() => {
-    switch (columnId) {
-      case "IDEAS":
-        return "💡";
-      case "TODO":
-        return "📝";
-      case "DONE":
-        return "✅";
-      default:
-        return "📋";
-    }
-  }, [columnId]);
-
   // Filter chores for this column
   const columnChores = useMemo(
     () => chores.filter((chore) => chore.column === columnId),
@@ -373,10 +359,7 @@ export default function ColumnSection({
         className={`column-item rounded-xl bg-white p-0 border-t-4 ${columnStyle} shadow-xl h-full flex flex-col`}
       >
         <div className={`rounded-t-lg ${headerStyle}`}>
-          <h2 className="text-xl font-bold pt-3 pb-1 px-5 text-left sm:text-center flex items-start sm:items-center sm:justify-center gap-2 mb-0">
-            <span className="text-2xl" aria-hidden="true">
-              {columnIcon}
-            </span>
+          <h2 className="text-2xl sm:text-3xl font-bold pt-3 pb-1 px-5 text-left sm:text-center flex items-center sm:justify-center mb-0 font-fancy">
             {title}
           </h2>
           <p className="text-xs text-left sm:text-center pt-0 pb-4 px-4 opacity-75">
@@ -413,11 +396,8 @@ export default function ColumnSection({
     >
       <div className={`rounded-t-lg ${headerStyle}`}>
         <h2
-          className={`text-xl font-bold pt-3 pb-1 px-5 text-left sm:text-center flex items-start sm:items-center sm:justify-center gap-2 mb-0`}
+          className={`text-2xl sm:text-3xl font-bold pt-3 pb-1 px-5 text-left sm:text-center flex items-center sm:justify-center mb-0 font-fancy`}
         >
-          <span className="text-2xl" aria-hidden="true">
-            {columnIcon}
-          </span>
           {title}
         </h2>
         <p className="text-xs text-left sm:text-center pt-0 pb-4 px-4 opacity-75">

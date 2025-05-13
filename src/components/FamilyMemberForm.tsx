@@ -370,7 +370,7 @@ export default function FamilyMemberForm({
         ref={modalRef}
         isOpen={isFormOpen}
         onClose={() => setIsFormOpen(false)}
-        title={editMode ? "Edit Family Member" : "Add New Family Member"}
+        title={editMode ? "Edit Family Member" : "New Family Member"}
       >
         <form onSubmit={handleSubmit}>
           <div className="mb-5">

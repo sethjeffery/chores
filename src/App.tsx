@@ -35,6 +35,26 @@ function AppContent() {
   // Track settings modal state
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
+  // Add animation styles for settings dialog
+  useEffect(() => {
+    // Create a style element for the animation
+    const styleEl = document.createElement("style");
+    styleEl.innerHTML = `
+      @keyframes dialogFadeIn {
+        from { opacity: 0; transform: scale(0.95); }
+        to { opacity: 1; transform: scale(1); }
+      }
+    `;
+    document.head.appendChild(styleEl);
+
+    // Clean up
+    return () => {
+      if (document.head.contains(styleEl)) {
+        document.head.removeChild(styleEl);
+      }
+    };
+  }, []);
+
   // Handle escape key to close settings modal
   useEffect(() => {
     const handleEscKey = (event: KeyboardEvent) => {
@@ -225,33 +245,32 @@ function AppContent() {
       }}
     >
       <div
-        className={`min-h-screen p-4 sm:p-6 md:p-8 ${
+        className={`min-h-screen overflow-x-hidden ${
           isDragging ? "app-dragging" : ""
         }`}
       >
-        <header className="max-w-7xl mx-auto mb-8 md:mb-12 relative">
-          <button
-            onClick={() => setIsSettingsOpen(true)}
-            className="absolute right-5 top-5 z-10 bg-white bg-opacity-40 backdrop-blur-md p-3 rounded-full 
-              hover:bg-opacity-70 hover:rotate-45 transition-all duration-300 shadow-lg 
-              focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-opacity-50"
-            aria-label="Settings"
-          >
-            <span className="text-2xl" aria-hidden="true">
-              ⚙️
-            </span>
-          </button>
-          <div className="bg-white bg-opacity-20 backdrop-blur-sm rounded-2xl p-6 shadow-xl">
-            <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white text-left sm:text-center pr-12 sm:pr-0">
-              Family Chores
-            </h1>
-            <p className="text-white text-opacity-90 text-left sm:text-center mt-3 text-lg">
-              Work together to keep your home happy! ✨
-            </p>
+        <header className="w-full bg-white bg-opacity-20 backdrop-blur-sm shadow-md mb-6">
+          <div className="flex justify-between items-center px-4 py-3 max-w-7xl mx-auto">
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-bold text-white font-fancy text-shadow">
+                Family Chores
+              </h1>
+            </div>
+            <button
+              onClick={() => setIsSettingsOpen(true)}
+              className="bg-white bg-opacity-40 backdrop-blur-md p-2 rounded-full 
+                hover:bg-opacity-70 hover:rotate-45 transition-all duration-300 shadow-md 
+                focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-opacity-50"
+              aria-label="Settings"
+            >
+              <span className="text-xl" aria-hidden="true">
+                ⚙️
+              </span>
+            </button>
           </div>
         </header>
 
-        <main className="max-w-7xl mx-auto">
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8">
           {error && (
             <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4 text-red-700 text-sm">
               <p className="font-medium">Error: {error}</p>
@@ -298,33 +317,21 @@ function AppContent() {
             <div
               className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto"
               onClick={(e) => e.stopPropagation()} // Prevent closing when clicking inside
+              style={{ animation: "dialogFadeIn 0.2s ease-out" }}
             >
-              <div className="flex justify-between items-center p-5 border-b">
-                <h2 className="text-2xl font-bold text-gray-800">
-                  Family Settings
-                </h2>
-                <button
-                  onClick={() => setIsSettingsOpen(false)}
-                  className="text-gray-500 hover:text-gray-700 p-1 rounded-full hover:bg-gray-100"
-                  aria-label="Close"
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="h-6 w-6"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M6 18L18 6M6 6l12 12"
-                    />
-                  </svg>
-                </button>
-              </div>
               <div className="p-6">
+                <div className="flex justify-between items-center mb-5">
+                  <h2 className="text-2xl font-bold text-indigo-800 font-fancy">
+                    Family Settings
+                  </h2>
+                  <button
+                    onClick={() => setIsSettingsOpen(false)}
+                    className="text-gray-500 hover:text-gray-700 text-xl"
+                    aria-label="Close"
+                  >
+                    &times;
+                  </button>
+                </div>
                 <p className="text-gray-600 mb-6">
                   Manage your family members, their avatars, and colors.
                 </p>

@@ -4,28 +4,6 @@ import { CHORE_ICONS } from "../constants";
 import ModalDialog from "./ModalDialog";
 import EmojiPicker from "./EmojiPicker";
 
-// Helper function to calculate age
-const calculateAge = (dobString: string | null): number | null => {
-  if (!dobString) return null;
-
-  try {
-    const dob = new Date(dobString);
-    const today = new Date();
-
-    let age = today.getFullYear() - dob.getFullYear();
-    const monthDiff = today.getMonth() - dob.getMonth();
-
-    // If birthday hasn't occurred yet this year, subtract one year
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) {
-      age--;
-    }
-
-    return age;
-  } catch {
-    return null;
-  }
-};
-
 interface ChoreFormProps {
   onAdd: (
     title: string,
@@ -124,14 +102,14 @@ export default function ChoreForm({ onAdd }: ChoreFormProps) {
             clipRule="evenodd"
           />
         </svg>
-        Add New Chore
+        New Chore
       </button>
 
       <ModalDialog
         ref={modalRef}
         isOpen={isFormOpen}
         onClose={() => setIsFormOpen(false)}
-        title="✨ Add New Chore ✨"
+        title="New Chore"
       >
         <form onSubmit={handleSubmit}>
           {/* Use the new EmojiPicker component */}
@@ -203,8 +181,6 @@ export default function ChoreForm({ onAdd }: ChoreFormProps) {
                   <option key={member.id} value={member.id}>
                     {member.avatar && `${member.avatar} `}
                     {member.name}
-                    {calculateAge(member.dob) !== null &&
-                      ` (${calculateAge(member.dob)})`}
                   </option>
                 ))}
             </select>

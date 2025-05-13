@@ -57,7 +57,9 @@ const ModalDialog = forwardRef<HTMLDivElement, ModalDialogProps>(
         >
           <div className="p-6">
             <div className="flex justify-between items-center mb-5">
-              <h2 className="text-2xl font-bold text-indigo-800">{title}</h2>
+              <h2 className="text-2xl font-bold text-indigo-800 font-fancy">
+                {title}
+              </h2>
               <button
                 onClick={onClose}
                 className="text-gray-500 hover:text-gray-700 text-xl"
