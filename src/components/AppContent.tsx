@@ -246,8 +246,12 @@ export default function AppContent() {
           isDragging ? "app-dragging" : ""
         }`}
       >
-        <header className="w-full backdrop-blur-sm mb-2 md:my-3">
-          <div className="flex md:justify-center items-center px-4 py-3 max-w-7xl mx-auto">
+        <header className="w-full mb-2 md:mt-2 md:mb-3">
+          <div className="relative flex flex-row md:flex-col md:justify-center items-start md:items-center px-4 py-3 max-w-7xl mx-auto">
+            <div className="absolute right-4 top-4">
+              <UserMenu onOpenFamilySettings={() => setIsSettingsOpen(true)} />
+            </div>
+
             <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold text-white font-fancy cartoon-text-shadow flex items-center">
               <img
                 src="/pocket-bunnies-head.png"
@@ -256,21 +260,6 @@ export default function AppContent() {
               />
               Pocket Bunnies
             </h1>
-
-            <div className="ml-auto flex items-center space-x-4">
-              <UserMenu />
-              <button
-                onClick={() => setIsSettingsOpen(true)}
-                className="bg-white bg-opacity-40 backdrop-blur-md p-2 rounded-full 
-                  hover:bg-opacity-70 hover:rotate-45 transition-all duration-300 shadow-md 
-                  focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-opacity-50"
-                aria-label="Settings"
-              >
-                <span className="text-xl" aria-hidden="true">
-                  ⚙️
-                </span>
-              </button>
-            </div>
           </div>
         </header>
 

@@ -94,6 +94,8 @@ body {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     grid-gap: 1.5rem;
+    position: relative;
+    z-index: 10; /* Lower z-index to not interfere with dropdowns */
   }
 
   .column-item {
