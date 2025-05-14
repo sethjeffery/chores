@@ -247,7 +247,7 @@ function AppContent() {
       >
         <header className="w-full backdrop-blur-sm mb-6">
           <div className="flex md:justify-center items-center px-4 py-3 max-w-7xl mx-auto">
-            <h1 className="text-2xl sm:text-3xl font-bold text-white font-fancy text-shadow flex items-center">
+            <h1 className="text-2xl sm:text-3xl font-bold text-white font-fancy cartoon-text-shadow flex items-center">
               <img
                 src="/pocket-bunnies-head.png"
                 alt="Pocket Bunny logo"
