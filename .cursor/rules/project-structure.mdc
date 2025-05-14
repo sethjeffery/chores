@@ -3,3 +3,60 @@ description: Project Overview
 globs: 
 alwaysApply: false
 ---
+# Pocket Bunnies - Project Overview
+
+Pocket Bunnies is a chore tracking application designed for families, with a cute bunny theme. It helps families manage and track chores for different family members.
+
+## Project Architecture
+
+### Core Technologies
+
+- **Frontend Framework**: React, TypeScript
+- **Styling**: TailwindCSS
+- **Database**: Supabase
+- **Build Tool**: Vite
+- **PWA Support**: vite-plugin-pwa
+
+### Project Structure
+
+- **`src/`**: Main application source code
+  - **`components/`**: React components for UI elements
+  - **`contexts/`**: React contexts for state management
+  - **`hooks/`**: Custom React hooks
+  - **`services/`**: API services for database interactions
+- **`public/`**: Static assets and PWA icons
+
+## Key Features
+
+### Core Functionality
+
+1. **Chore Management**:
+   - Kanban style app
+   - Uses drag and drop to move chores between status columns
+   - Ideas have no assignee, To Do are assigned chores, Done are completed
+   - Chores have monetary rewards to work as pocket money
+
+2. **Family Member Management**:
+   - Add, update, and delete family members
+   - Customize with avatars (emojis) and colors
+   - Track birthdays, primarily for sorting by age
+
+3. **Mobile and PWA Support**:
+   - Installable on devices
+   - Works offline with data syncing
+   - Custom icons and splash screens are rebuilt on `npm run build`
+
+## Database
+
+The application uses Supabase, the schema and seed data are stored in `supabase-schema.sql`.
+Services for fetching data are stored in `src/services`.
+
+## Styling
+
+- Tailwind CSS for utility-first styling
+- Tailwind classes (and custom extensions in tailwind.config.js) are preferred to custom CSS
+- Inline styling should be used sparingly
+- Custom cartoon-style with text shadows and rounded elements
+- Mobile-responsive design with touch support
+- "Pacifico" font for headings and titles
+
