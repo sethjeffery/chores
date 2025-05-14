@@ -62,24 +62,19 @@ export default function ChoreForm({ onAdd }: ChoreFormProps) {
         "📝", // memo
         "⚽", // soccer ball
         "🎵", // music note
-        "📱", // mobile phone
-        "🌱", // seedling
-        "💡", // light bulb
-        "🧸", // teddy bear
       ],
     },
-    { name: "Cleaning", start: 0, end: 17 },
-    { name: "Household", start: 18, end: 36 },
-    { name: "Kitchen", start: 37, end: 55 },
-    { name: "Clothes", start: 56, end: 72 },
-    { name: "Electronics", start: 73, end: 90 },
-    { name: "Education", start: 91, end: 108 },
-    { name: "Nature", start: 109, end: 124 },
-    { name: "Animals", start: 125, end: 142 },
-    { name: "Toys", start: 143, end: 157 },
-    { name: "Sports", start: 158, end: 174 },
-    { name: "Music", start: 175, end: 187 },
-    { name: "Misc", start: 188, end: 203 },
+    { name: "Cleaning", start: 0, end: 19 },
+    { name: "Household", start: 20, end: 39 },
+    { name: "Kitchen", start: 40, end: 59 },
+    { name: "Clothes", start: 60, end: 79 },
+    { name: "Electronics", start: 80, end: 99 },
+    { name: "Education", start: 100, end: 119 },
+    { name: "Nature", start: 120, end: 139 },
+    { name: "Animals", start: 140, end: 159 },
+    { name: "Toys", start: 160, end: 179 },
+    { name: "Sports", start: 180, end: 199 },
+    { name: "Misc", start: 200, end: 219 },
   ];
 
   return (

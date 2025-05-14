@@ -173,12 +173,8 @@ function AppContent() {
       <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-blue-100 via-purple-100 to-pink-100">
         <div className="bg-white rounded-xl p-8 shadow-xl max-w-md w-full text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-500 mx-auto mb-4"></div>
-          <h2 className="text-xl font-medium text-gray-700">
-            Loading chores...
-          </h2>
-          <p className="text-gray-500 mt-2">
-            Getting your family tasks ready...
-          </p>
+          <h2 className="text-xl font-medium text-gray-700">Loading ...</h2>
+          <p className="text-gray-500 mt-2">Getting all the bunnies ready...</p>
         </div>
       </div>
     );
@@ -249,16 +245,19 @@ function AppContent() {
           isDragging ? "app-dragging" : ""
         }`}
       >
-        <header className="w-full bg-white bg-opacity-20 backdrop-blur-sm shadow-md mb-6">
-          <div className="flex justify-between items-center px-4 py-3 max-w-7xl mx-auto">
-            <div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-white font-fancy text-shadow">
-                Family Chores
-              </h1>
-            </div>
+        <header className="w-full backdrop-blur-sm mb-6">
+          <div className="flex md:justify-center items-center px-4 py-3 max-w-7xl mx-auto">
+            <h1 className="text-2xl sm:text-3xl font-bold text-white font-fancy text-shadow flex items-center">
+              <img
+                src="/pocket-bunnies-head.png"
+                alt="Pocket Bunny logo"
+                className="w-10 h-10 mr-2 md:hidden"
+              />
+              Pocket Bunnies
+            </h1>
             <button
               onClick={() => setIsSettingsOpen(true)}
-              className="bg-white bg-opacity-40 backdrop-blur-md p-2 rounded-full 
+              className="absolute right-4 bg-white bg-opacity-40 backdrop-blur-md p-2 rounded-full 
                 hover:bg-opacity-70 hover:rotate-45 transition-all duration-300 shadow-md 
                 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-opacity-50"
               aria-label="Settings"
@@ -320,7 +319,7 @@ function AppContent() {
               style={{ animation: "dialogFadeIn 0.2s ease-out" }}
             >
               <div className="p-6">
-                <div className="flex justify-between items-center mb-5">
+                <div className="flex justify-between items-center mb-5 relative">
                   <h2 className="text-2xl font-bold text-indigo-800 font-fancy">
                     Family Settings
                   </h2>

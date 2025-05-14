@@ -3,6 +3,7 @@ import { useFamilyContext } from "../contexts/FamilyContext";
 import ModalDialog from "./ModalDialog";
 import type { FamilyMember } from "../types";
 import { format } from "date-fns";
+import EmojiPicker from "./EmojiPicker";
 
 const AVATARS = [
   // People
@@ -84,16 +85,29 @@ const AVATARS = [
   "🎃", // jack-o-lantern
   "😺", // smiling cat
   "🦄", // unicorn
-  "🧙", // mage
+  "🦖", // t-rex dinosaur
   "🧚", // fairy
-  "🧛", // vampire
-  "🧜", // merperson
-  "🧝", // elf
-  "🧞", // genie
-  "🧟", // zombie
-  "👹", // ogre
-  "👺", // goblin
+  "🎸", // guitar
+  "🎮", // video game
+  "🎨", // artist palette
+  "⚽", // soccer ball
+  "🏀", // basketball
+  "🍦", // ice cream
+  "🍕", // pizza
+  "❤️", // heart
+  "🌈", // rainbow
+  "🚀", // rocket
+  "🦸", // superhero
 ];
+
+// Avatar categories for the emoji picker
+const AVATAR_CATEGORIES = [
+  { name: "People", start: 0, end: 19 },
+  { name: "Faces", start: 29, end: 48 },
+  { name: "Animals", start: 49, end: 68 },
+  { name: "Fun", start: 65, end: 88 },
+];
+
 const COLORS = [
   "#4f46e5", // indigo
   "#d946ef", // fuchsia
@@ -391,86 +405,14 @@ export default function FamilyMemberForm({
             />
           </div>
 
-          <div className="mb-5">
-            <label
-              htmlFor="member-avatar"
-              className="block text-sm font-medium text-gray-700 mb-2"
-            >
-              Avatar
-            </label>
-            <div className="overflow-x-auto -mx-6 px-6 scrollbar-hide snap-x snap-mandatory">
-              <div className="flex space-x-12 pb-1 pt-1">
-                {/* Group avatars by category */}
-                {[
-                  {
-                    name: "Favorites",
-                    emojis: [
-                      "👨", // man
-                      "👩", // woman
-                      "👧", // girl
-                      "👦", // boy
-                      "👶", // baby
-                      "👴", // old man
-                      "👵", // old woman
-                      "😀", // grinning face
-                      "😊", // smiling face with smiling eyes
-                      "😎", // smiling face with sunglasses
-                      "🐶", // dog
-                      "🐱", // cat
-                      "🐻", // bear
-                      "👻", // ghost
-                      "🦄", // unicorn
-                      "🤖", // robot
-                      "🧙", // mage
-                      "🧚", // fairy
-                      "👮", // police officer
-                      "👷", // construction worker
-                      "👩‍⚕️", // woman health worker
-                      "👨‍⚕️", // man health worker
-                      "👩‍🍳", // woman cook
-                      "👨‍🍳", // man cook
-                    ],
-                  },
-                  { name: "People", start: 0, end: 28 },
-                  { name: "Faces", start: 29, end: 48 },
-                  { name: "Animals", start: 49, end: 64 },
-                  { name: "Fantasy", start: 65, end: 80 },
-                ].map((category) => {
-                  // Get emojis either from direct list or by slicing the AVATARS array
-                  const emojis =
-                    category.emojis ||
-                    AVATARS.slice(category.start, category.end + 1);
-
-                  return (
-                    <div
-                      key={category.name}
-                      className="flex-shrink-0 min-w-[280px] max-w-xs snap-center"
-                    >
-                      <h4 className="text-xs font-medium text-gray-500 mb-2">
-                        {category.name}
-                      </h4>
-                      <div className="flex flex-wrap gap-1">
-                        {emojis.slice(0, 24).map((emoji) => (
-                          <button
-                            type="button"
-                            key={emoji}
-                            onClick={() => setAvatar(emoji)}
-                            className={`text-xl p-1.5 rounded-lg min-w-[2.2rem] min-h-[2.2rem] transition-all flex items-center justify-center ${
-                              avatar === emoji
-                                ? "bg-indigo-100 shadow-inner border-2 border-indigo-300"
-                                : "hover:bg-gray-100 border-2 border-transparent"
-                            }`}
-                          >
-                            {emoji}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
+          <EmojiPicker
+            value={avatar}
+            onChange={setAvatar}
+            emojiSource={AVATARS}
+            categories={AVATAR_CATEGORIES}
+            label="Avatar"
+            id="member-avatar"
+          />
 
           <div className="mb-5">
             <label

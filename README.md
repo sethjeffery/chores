@@ -1,9 +1,9 @@
-# Chores - A Family Task Manager
+# Pocket Bunnies
 
-A simple Kanban-style board for managing family chores. Assign tasks to family members and track their progress across three columns:
+A simple Kanban-style board for managing your chores and tasks. Assign chores to family members and track their progress across three columns:
 
 - Ideas: For planning future chores
-- To Do: Current tasks that need to be done
+- To Do: Current chores that need to be completed
 - Done: Completed chores
 
 ## Features
@@ -80,7 +80,7 @@ npm run dev
 
 ## Usage
 
-- Click "Add New Chore" to create a new task
+- Click "New Chore" to create a new task
 - Enter the chore description, emoji icon, and optional reward
 - Assign it to a family member or leave unassigned in the Ideas column
 - Drag and drop chores between columns (works with mouse or touch)

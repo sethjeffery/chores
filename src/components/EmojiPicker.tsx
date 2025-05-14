@@ -32,9 +32,9 @@ export default function EmojiPicker({
           {label}
         </label>
       )}
-      <div className="overflow-x-auto -mx-6 px-6 scrollbar-hide snap-x snap-mandatory">
-        <div className="flex space-x-12 pb-1 pt-1">
-          {categories.map((category) => {
+      <div className="overflow-x-auto -mx-6 scrollbar-hide snap-x snap-mandatory">
+        <div className="flex pb-1 pt-1">
+          {categories.map((category, index) => {
             // Get emojis either from direct list or by slicing the source array
             const emojis =
               category.emojis ||
@@ -45,13 +45,15 @@ export default function EmojiPicker({
             return (
               <div
                 key={category.name}
-                className="flex-shrink-0 min-w-[280px] max-w-xs snap-center"
+                className={`flex-shrink-0 snap-start pl-6 ${
+                  index === categories.length - 1 ? "w-full" : "max-w-sm"
+                }`}
               >
                 <h4 className="text-xs font-medium text-gray-500 mb-1">
                   {category.name}
                 </h4>
-                <div className="flex flex-wrap gap-0.5">
-                  {emojis.slice(0, 24).map((emoji) => (
+                <div className="flex flex-wrap gap-0.5 max-w-[340px]">
+                  {emojis.slice(0, 20).map((emoji) => (
                     <button
                       type="button"
                       key={emoji}
