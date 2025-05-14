@@ -1,5 +1,5 @@
 import { Routes, Route } from "react-router-dom";
-import { FamilyProvider } from "./contexts/FamilyContext";
+import { FamilyProvider } from "./providers/FamilyProvider";
 import AppContent from "./components/AppContent";
 import LoginPage from "./components/LoginPage";
 import AuthCallback from "./components/AuthCallback";

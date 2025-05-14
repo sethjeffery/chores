@@ -207,18 +207,3 @@ body {
     user-select: none;
   }
 }
-
-/* Add styles for the app while dragging */
-.app-dragging {
-  pointer-events: auto !important; /* Ensure drag events can be captured */
-  touch-action: none !important; /* Prevent scrolling or zooming during drag */
-}
-
-/* Style for body when dragging begins on touch screens */
-@media (max-width: 768px) {
-  /* Allow the app container to scroll when needed */
-  .app-dragging {
-    height: 100% !important;
-    overflow: hidden !important;
-  }
-}

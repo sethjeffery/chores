@@ -2,7 +2,7 @@ import { useState, useCallback, useContext, useMemo } from "react";
 import type { Chore, ColumnType } from "../types";
 import ChoreCard from "./ChoreCard";
 import { COLUMNS } from "../store";
-import { useFamilyContext } from "../contexts/FamilyContext";
+import { useFamilyContext } from "../hooks/useFamilyContext";
 import DragContext from "../contexts/DragContext";
 import MemberSection from "./MemberSection";
 
@@ -65,19 +65,16 @@ export default function ColumnSection({
 
       try {
         // Get the chore ID from the data transfer
-        const choreId = e.dataTransfer.getData("choreId");
+        const chore: Chore = JSON.parse(e.dataTransfer.getData("chore"));
 
-        if (choreId) {
-          // Find the chore being dragged
-          const chore = chores.find((c) => c.id === choreId);
-
+        if (chore) {
           // If it's an unassigned chore, don't allow the drop
           if (chore && !chore.assignee) {
             console.log("Cannot move unassigned chore");
             // Don't call onDrop, just clean up visual state
           } else {
             // Process the drop for all other cases
-            onDrop(choreId, columnId);
+            onDrop(chore.id, columnId);
           }
         }
       } catch (err) {
@@ -98,7 +95,7 @@ export default function ColumnSection({
         }, 0);
       }
     },
-    [chores, columnId, onDrop, setDragOverMember, setIsColumnOver]
+    [columnId, onDrop, setDragOverMember, setIsColumnOver]
   );
 
   // Handle dragover for the column
@@ -110,13 +107,11 @@ export default function ColumnSection({
 
       try {
         // Try to extract the chore ID from dataTransfer
-        const choreId = e.dataTransfer.getData("choreId");
+        const chore: Chore = JSON.parse(e.dataTransfer.getData("chore"));
 
         // Find the chore being dragged - this may not work in all browsers during dragover
         // We'll need a fallback in case we can't get the chore data
-        if (choreId) {
-          const chore = chores.find((c) => c.id === choreId);
-
+        if (chore) {
           // If it's an unassigned chore and being dropped into TODO, show a different style
           if (chore && !chore.assignee && columnId === "TODO") {
             // Add a not-allowed class directly to the DOM
@@ -148,7 +143,7 @@ export default function ColumnSection({
         }, 0);
       }
     },
-    [chores, columnId, contextDragOver, isColumnOver, setIsColumnOver]
+    [columnId, contextDragOver, isColumnOver, setIsColumnOver]
   );
 
   // Handle dragleave for the column
@@ -187,10 +182,10 @@ export default function ColumnSection({
       });
 
       try {
-        const choreId = e.dataTransfer.getData("choreId");
+        const chore: Chore = JSON.parse(e.dataTransfer.getData("chore"));
 
-        if (choreId) {
-          handleAssigneeDropLogic(choreId, memberId);
+        if (chore) {
+          handleAssigneeDropLogic(chore.id, memberId);
         }
       } catch (err) {
         console.error("Error handling assignee drop:", err);

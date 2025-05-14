@@ -1,13 +1,13 @@
 import { useChores, COLUMNS } from "../store";
 import ColumnSection from "./ColumnSection";
 import ChoreForm from "./ChoreForm";
-import DragContext from "../contexts/DragContext";
 import AssigneeDialog from "./AssigneeDialog";
 import FamilyMemberForm from "./FamilyMemberForm";
 import UserMenu from "./UserMenu";
 import type { ColumnType } from "../types";
 import { useEffect, useCallback, useState } from "react";
-import { useFamilyContext } from "../contexts/FamilyContext";
+import { useFamilyContext } from "../hooks/useFamilyContext";
+import DragProvider from "../providers/DragProvider";
 
 // Main application component
 export default function AppContent() {
@@ -29,9 +29,6 @@ export default function AppContent() {
     loading: familyLoading,
     error: familyError,
   } = useFamilyContext();
-
-  // Track dragging state
-  const [isDragging, setIsDragging] = useState(false);
 
   // Track settings modal state
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -93,61 +90,6 @@ export default function AppContent() {
       });
     }
   }, [chores, familyMembers, updateChore, choresLoading, familyLoading]);
-
-  // Handle native drag start
-  const handleDragStart = useCallback((event: React.DragEvent) => {
-    // Get the chore ID from the dragged element's data attribute
-    const el = event.currentTarget as HTMLElement;
-    const choreId = el.dataset.choreId;
-
-    if (choreId) {
-      // Add a global class to the body to track drag state
-      document.body.classList.add("dragging-active");
-      setIsDragging(true);
-
-      // Set a custom drag image if needed
-      try {
-        const dragImage = el.cloneNode(true) as HTMLElement;
-        document.body.appendChild(dragImage);
-
-        // Style the drag image
-        dragImage.style.width = `${el.offsetWidth}px`;
-        dragImage.style.opacity = "0.85";
-        dragImage.style.pointerEvents = "none";
-        dragImage.style.position = "absolute";
-        dragImage.style.top = "-1000px";
-        dragImage.style.backgroundColor = "white";
-        dragImage.style.boxShadow = "0 10px 15px -3px rgba(0, 0, 0, 0.1)";
-        dragImage.style.transform = "rotate(-2deg) scale(0.95)";
-
-        // Set the drag image
-        event.dataTransfer.setDragImage(dragImage, 20, 20);
-
-        // Remove the temporary element
-        setTimeout(() => {
-          if (document.body.contains(dragImage)) {
-            document.body.removeChild(dragImage);
-          }
-        }, 0);
-      } catch (e) {
-        console.warn("Error setting drag image", e);
-      }
-    }
-  }, []);
-
-  // Handle native drag over
-  const handleDragOver = useCallback((event: React.DragEvent) => {
-    // Required to allow dropping
-    event.preventDefault();
-    event.dataTransfer.dropEffect = "move";
-  }, []);
-
-  // Handle native drag end
-  const handleDragEnd = useCallback(() => {
-    // Remove the global class
-    document.body.classList.remove("dragging-active");
-    setIsDragging(false);
-  }, []);
 
   // Handle drop event
   const handleDrop = useCallback(
@@ -234,18 +176,8 @@ export default function AppContent() {
   }
 
   return (
-    <DragContext.Provider
-      value={{
-        onDragStart: handleDragStart,
-        onDragOver: handleDragOver,
-        onDragEnd: handleDragEnd,
-      }}
-    >
-      <div
-        className={`min-h-screen overflow-x-hidden ${
-          isDragging ? "app-dragging" : ""
-        }`}
-      >
+    <DragProvider>
+      <div className="min-h-screen overflow-x-hidden">
         <header className="w-full mb-2 md:mt-2 md:mb-3">
           <div className="relative flex flex-row md:flex-col md:justify-center items-start md:items-center px-4 py-3 max-w-7xl mx-auto">
             <div className="absolute right-4 top-4">
@@ -377,6 +309,6 @@ export default function AppContent() {
           </div>
         )}
       </div>
-    </DragContext.Provider>
+    </DragProvider>
   );
 }

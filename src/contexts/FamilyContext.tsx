@@ -1,10 +1,8 @@
-import { createContext, useContext } from "react";
-import type { ReactNode } from "react";
-import { useFamilyMembers } from "../store";
+import { createContext } from "react";
 import type { FamilyMember } from "../types";
 
 // Define the context type
-interface FamilyContextType {
+export interface FamilyContextType {
   familyMembers: FamilyMember[];
   loading: boolean;
   error: string | null;
@@ -24,24 +22,6 @@ interface FamilyContextType {
 }
 
 // Create the context with a default value
-const FamilyContext = createContext<FamilyContextType | undefined>(undefined);
-
-// Provider component that wraps parts of the app that need family data
-export function FamilyProvider({ children }: { children: ReactNode }) {
-  const familyState = useFamilyMembers();
-
-  return (
-    <FamilyContext.Provider value={familyState}>
-      {children}
-    </FamilyContext.Provider>
-  );
-}
-
-// Custom hook to use the family context
-export function useFamilyContext() {
-  const context = useContext(FamilyContext);
-  if (context === undefined) {
-    throw new Error("useFamilyContext must be used within a FamilyProvider");
-  }
-  return context;
-}
+export const FamilyContext = createContext<FamilyContextType | undefined>(
+  undefined
+);

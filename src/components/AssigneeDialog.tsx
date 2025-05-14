@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { useFamilyContext } from "../contexts/FamilyContext";
+import { useFamilyContext } from "../hooks/useFamilyContext";
 import type { FamilyMember, ColumnType } from "../types";
 import ModalDialog from "./ModalDialog";
 

@@ -1,6 +1,6 @@
 import type { Chore } from "../types";
 import RewardBadge from "./RewardBadge";
-import { useDragAndDrop } from "../hooks/useDragAndDrop";
+import { useChoreCardDrag } from "../hooks/useChoreCardDrag";
 import { useTouchDevice } from "../hooks/useTouchDevice";
 import { useEffect, useState, useMemo } from "react";
 
@@ -30,7 +30,7 @@ export default function ChoreCard({
   const [forceShowButtons, setForceShowButtons] = useState(false);
 
   // Use our drag and drop hook
-  const { dragHandlers, isDragging } = useDragAndDrop({
+  const { dragHandlers } = useChoreCardDrag({
     chore,
     onDragStart,
     onDragEnd,
@@ -98,7 +98,6 @@ export default function ChoreCard({
       {...dragHandlers}
       className={`p-4 rounded-xl shadow-md mb-2 border-l-4 transition-colors bg-white ${getCardStyle()} 
         hover:shadow-lg cursor-grab active:cursor-grabbing
-        ${isDragging ? "opacity-50" : ""}
       `}
       style={borderStyle}
     >

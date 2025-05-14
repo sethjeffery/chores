@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { useFamilyContext } from "../contexts/FamilyContext";
+import { useFamilyContext } from "../hooks/useFamilyContext";
 import ModalDialog from "./ModalDialog";
 import type { FamilyMember } from "../types";
 import { format } from "date-fns";
@@ -128,7 +128,7 @@ interface FamilyMemberFormProps {
     name: string,
     avatar: string,
     color: string,
-    dob?: string
+    dob: string
   ) => void;
   isInModal?: boolean;
 }
@@ -219,14 +219,14 @@ export default function FamilyMemberForm({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (name.trim()) {
+    if (name.trim() && dob) {
       if (editMode && selectedMember) {
         // Update existing member
         await updateFamilyMember(selectedMember.id, {
           name: name.trim(),
           avatar,
           color,
-          dob: dob || null,
+          dob: dob,
         });
       } else {
         // Add new member
@@ -461,7 +461,6 @@ export default function FamilyMemberForm({
               className="block text-sm font-medium text-gray-700 mb-2"
             >
               Date of Birth
-              <span className="text-gray-400 text-xs ml-2">(optional)</span>
             </label>
             <input
               id="member-dob"
@@ -470,6 +469,7 @@ export default function FamilyMemberForm({
               onChange={(e) => setDob(e.target.value)}
               className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors shadow-sm"
               placeholder="YYYY-MM-DD"
+              required
             />
           </div>
 
