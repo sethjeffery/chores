@@ -12,6 +12,10 @@ export default {
           "100%": { opacity: "1", transform: "translateY(0)" },
         },
       },
+      boxShadow: {
+        cartoon:
+          "0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1), 0 1px 0 1px rgba(0, 0, 0, 0.5)",
+      },
     },
   },
   plugins: [],

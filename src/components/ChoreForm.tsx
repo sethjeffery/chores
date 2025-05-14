@@ -81,7 +81,7 @@ export default function ChoreForm({ onAdd }: ChoreFormProps) {
     <>
       <button
         onClick={() => setIsFormOpen(true)}
-        className="w-full bg-gradient-to-r from-indigo-600 to-violet-600 text-white py-4 px-6 rounded-2xl hover:from-indigo-700 hover:to-violet-700 transition-all shadow-lg hover:shadow-xl text-lg font-semibold flex items-center justify-center gap-2"
+        className="w-full bg-gradient-to-r from-indigo-600 to-violet-600 text-white py-4 px-6 rounded-2xl hover:from-indigo-700 hover:to-violet-700 transition-all shadow-cartoon text-lg font-semibold flex items-center justify-center gap-2"
       >
         <svg
           xmlns="http://www.w3.org/2000/svg"
@@ -209,7 +209,7 @@ export default function ChoreForm({ onAdd }: ChoreFormProps) {
           <div className="flex space-x-3">
             <button
               type="submit"
-              className="flex-1 bg-gradient-to-r from-indigo-600 to-violet-600 text-white py-3 px-4 rounded-xl hover:from-indigo-700 hover:to-violet-700 transition-all shadow-md hover:shadow-lg font-medium"
+              className="flex-1 bg-gradient-to-r from-indigo-600 to-violet-600 text-white py-3 px-4 rounded-xl hover:from-indigo-700 hover:to-violet-700 transition-all shadow-cartoon font-medium"
             >
               Add Chore
             </button>
