@@ -14,6 +14,8 @@ export default defineConfig({
         "apple-touch-icon.png",
         "icon-64x64.png",
         "icon-128x128.png",
+        "pocket-bunnies-head.png",
+        "pocket-bunnies-clip.png",
       ],
       manifest: {
         name: "Pocket Bunnies",
@@ -21,7 +23,7 @@ export default defineConfig({
         description:
           "A fun app for tracking pocket money and chores with a cute bunny theme!",
         theme_color: "#6366f1",
-        background_color: "#ffffff",
+        background_color: "#6366f1",
         icons: [
           {
             src: "favicon-16x16.png",
