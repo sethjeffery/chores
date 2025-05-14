@@ -2,7 +2,6 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import "./index.css";
 import App from "./App.tsx";
-import CustomDndProvider from "./contexts/DndProvider.tsx";
 import { registerSW } from "virtual:pwa-register";
 
 // Register service worker
@@ -16,8 +15,6 @@ const updateSW = registerSW({
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    <CustomDndProvider>
-      <App />
-    </CustomDndProvider>
+    <App />
   </React.StrictMode>
 );
