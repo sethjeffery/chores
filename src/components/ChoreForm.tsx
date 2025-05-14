@@ -7,7 +7,7 @@ import EmojiPicker from "./EmojiPicker";
 interface ChoreFormProps {
   onAdd: (
     title: string,
-    assigneeId?: string,
+    assigneeId?: string, // UUID reference to family_members.id
     reward?: number,
     icon?: string
   ) => void;

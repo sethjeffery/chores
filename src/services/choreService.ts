@@ -38,38 +38,39 @@ export async function getChores(): Promise<Chore[]> {
  */
 export async function addChore(
   title: string,
-  assignee: string | null = null,
-  reward: number | null = null,
-  icon: string | null = null,
+  assignee: string | null, // Now a UUID reference to family_members.id
+  reward: number | null,
+  icon: string | null,
   column: ColumnType = assignee ? "TODO" : "IDEAS"
 ): Promise<string> {
   try {
-    // Generate a UUID for the new chore
     const id = uuidv4();
 
-    // Create a new chore object
-    const newChore: Chore = {
+    // Get current user
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      throw new Error("User not authenticated");
+    }
+
+    const { error } = await supabase.from(CHORES_TABLE).insert({
       id,
       title,
       assignee,
-      column,
-      createdAt: new Date().toISOString(),
+      status: column,
       reward,
       icon,
-    };
-
-    // Convert to database format
-    const dbChore = fromChore(newChore);
-
-    console.log("Adding new chore:", dbChore);
-    const { error } = await supabase.from(CHORES_TABLE).insert(dbChore);
+      created_at: new Date().toISOString(),
+      user_id: user.id,
+    });
 
     if (error) {
       console.error("Error adding chore:", error);
       throw error;
     }
 
-    console.log("Chore added with ID:", id);
     return id;
   } catch (error) {
     console.error("Error adding chore:", error);
@@ -142,24 +143,30 @@ export async function moveChore(id: string, column: ColumnType): Promise<void> {
  */
 export async function reassignChore(
   id: string,
-  assigneeId: string,
+  assigneeId: string, // UUID of the family member
   targetColumn?: ColumnType
 ): Promise<void> {
   try {
-    // Get the current chore data
-    const chores = await getChores();
-    const chore = chores.find((c) => c.id === id);
+    // If target column is provided, use it
+    if (targetColumn) {
+      await updateChore(id, { assignee: assigneeId, column: targetColumn });
+    } else {
+      // Otherwise, get the current chore
+      const { data, error } = await supabase
+        .from(CHORES_TABLE)
+        .select("*")
+        .eq("id", id)
+        .single();
 
-    if (chore) {
-      // If we have a target column specified, use that
-      if (targetColumn) {
-        await updateChore(id, { assignee: assigneeId, column: targetColumn });
+      if (error) {
+        throw error;
       }
-      // Otherwise, if assigning to someone, also move from IDEAS to TODO if needed
-      else if (chore.column === "IDEAS") {
+
+      // If chore was in IDEAS, move to TODO when assigned
+      if (data && data.status === "IDEAS") {
         await updateChore(id, { assignee: assigneeId, column: "TODO" });
       } else {
-        // Keep the current column for other cases
+        // Otherwise just update the assignee
         await updateChore(id, { assignee: assigneeId });
       }
     }

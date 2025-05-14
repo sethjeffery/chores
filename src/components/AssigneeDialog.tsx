@@ -6,7 +6,7 @@ import ModalDialog from "./ModalDialog";
 interface AssigneeDialogProps {
   onAssign: (
     choreId: string,
-    assigneeId: string,
+    assigneeId: string, // UUID reference to family_members.id
     targetColumn?: ColumnType
   ) => void;
 }

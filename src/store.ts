@@ -389,7 +389,7 @@ export const useChores = () => {
   const addChore = useCallback(
     async (
       title: string,
-      assigneeId?: string,
+      assigneeId?: string, // UUID reference to family_members.id
       reward?: number,
       icon?: string,
       column: ColumnType = assigneeId ? "TODO" : "IDEAS"
@@ -542,7 +542,11 @@ export const useChores = () => {
 
   // Reassign a chore to a different family member
   const reassignChore = useCallback(
-    async (id: string, assigneeId: string, targetColumn?: ColumnType) => {
+    async (
+      id: string,
+      assigneeId: string, // UUID reference to family_members.id
+      targetColumn?: ColumnType
+    ) => {
       try {
         // Find the current chore
         const chore = chores.find((c) => c.id === id);

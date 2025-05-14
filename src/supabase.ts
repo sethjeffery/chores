@@ -50,14 +50,16 @@ export const CHORES_TABLE = "chores";
 export type ChoreTable = {
   id: string;
   title: string;
+  // Now a UUID reference to family_members.id
   assignee: string | null;
   status: string;
   created_at: string;
   reward: number | null;
   icon: string | null;
+  user_id: string | null;
 };
 
-// Helper function to convert database record to app Chore type
+// Convert from DB to app format
 export function toChore(record: ChoreTable): Chore {
   return {
     id: record.id,
@@ -70,17 +72,17 @@ export function toChore(record: ChoreTable): Chore {
   };
 }
 
-// Helper function to convert app Chore type to database record
+// Convert from app to DB format
 export function fromChore(chore: Partial<Chore>): Partial<ChoreTable> {
-  const record: Partial<ChoreTable> = {};
+  const result: Partial<ChoreTable> = {};
 
-  if (chore.id !== undefined) record.id = chore.id;
-  if (chore.title !== undefined) record.title = chore.title;
-  if (chore.assignee !== undefined) record.assignee = chore.assignee;
-  if (chore.column !== undefined) record.status = chore.column;
-  if (chore.createdAt !== undefined) record.created_at = chore.createdAt;
-  if (chore.reward !== undefined) record.reward = chore.reward;
-  if (chore.icon !== undefined) record.icon = chore.icon;
+  if (chore.id !== undefined) result.id = chore.id;
+  if (chore.title !== undefined) result.title = chore.title;
+  if (chore.assignee !== undefined) result.assignee = chore.assignee;
+  if (chore.column !== undefined) result.status = chore.column;
+  if (chore.createdAt !== undefined) result.created_at = chore.createdAt;
+  if (chore.reward !== undefined) result.reward = chore.reward;
+  if (chore.icon !== undefined) result.icon = chore.icon;
 
-  return record;
+  return result;
 }

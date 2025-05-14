@@ -18,7 +18,7 @@ export type ColumnType = "IDEAS" | "TODO" | "DONE";
 export interface Chore {
   id: string;
   title: string;
-  assignee: string | null; // Store the family member ID instead of the full object
+  assignee: string | null; // UUID reference to family_members.id
   column: ColumnType;
   createdAt: string;
   reward: number | null; // null instead of undefined

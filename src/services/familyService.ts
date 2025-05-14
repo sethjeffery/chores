@@ -13,6 +13,7 @@ export interface FamilyMemberRecord {
   color?: string | null;
   dob?: string | null;
   created_at?: string;
+  user_id?: string | null;
 }
 
 // Convert from DB to app format
@@ -115,37 +116,36 @@ export async function getFamilyMembers(): Promise<FamilyMember[]> {
  */
 export async function addFamilyMember(
   name: string,
-  avatar?: string,
-  color?: string,
-  dob?: string
+  avatar: string | null = null,
+  color: string | null = null,
+  dob: string | null = null
 ): Promise<string> {
   try {
-    // Generate a UUID for the new family member
     const id = uuidv4();
 
-    // Create a new family member object
-    const newMember: FamilyMember = {
+    // Get current user
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      throw new Error("User not authenticated");
+    }
+
+    const { error } = await supabase.from(FAMILY_MEMBERS_TABLE).insert({
       id,
       name,
-      avatar: avatar || null,
-      color: color || null,
-      dob: dob || null,
-    };
-
-    // Convert to database format
-    const dbMember = fromFamilyMember(newMember);
-
-    console.log("Adding new family member:", dbMember);
-    const { error } = await supabase
-      .from(FAMILY_MEMBERS_TABLE)
-      .insert(dbMember);
+      avatar,
+      color,
+      dob,
+      user_id: user.id,
+    });
 
     if (error) {
       console.error("Error adding family member:", error);
       throw error;
     }
 
-    console.log("Family member added with ID:", id);
     return id;
   } catch (error) {
     console.error("Error adding family member:", error);
