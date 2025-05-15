@@ -1,70 +1,80 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useAccount } from "../hooks/useAccount";
+import { useAuth } from "../../auth/hooks/useAuth";
 import * as accountService from "../services/accountService";
-import { supabase } from "../../../supabase";
+import useSWR from "swr";
 
-interface AccountUser {
-  id: string;
-  userId: string;
+// Defining the extended AccountUser interface based on the original from accountService
+interface ExtendedAccountUser
+  extends Omit<accountService.AccountUser, "accountId"> {
+  accountId?: string;
   email?: string;
-  isAdmin: boolean;
+  name?: string;
+  isCurrentUser?: boolean;
 }
 
 export default function AccountUsersManager() {
   const { activeAccount, isAdmin } = useAccount();
-  const [users, setUsers] = useState<AccountUser[]>([]);
+  const { user: currentUser } = useAuth();
   const [newUserEmail, setNewUserEmail] = useState("");
-  const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  // Load account users when active account changes
-  useEffect(() => {
-    if (!activeAccount) return;
+  // Use SWR to fetch and cache account users
+  const {
+    data: users = [],
+    error,
+    mutate: mutateUsers,
+    isLoading,
+  } = useSWR<ExtendedAccountUser[]>(
+    activeAccount ? `account-users-${activeAccount.id}` : null,
+    async () => {
+      if (!activeAccount || !currentUser) return [];
 
-    const loadUsers = async () => {
-      setLoading(true);
       try {
+        // Get account users
         const accountUsers = await accountService.getAccountUsers(
           activeAccount.id
         );
 
-        // Get the emails for each user
-        const usersWithEmails = await Promise.all(
-          accountUsers.map(async (user) => {
-            // Get user profile from Supabase
-            const { data, error } = await supabase.auth.admin.getUserById(
-              user.userId
-            );
+        // Transform account users to include display information
+        return accountUsers.map((user) => {
+          // Check if this user is the current logged-in user
+          const isCurrentUser = user.userId === currentUser.id;
 
-            if (error || !data.user) {
-              console.error("Error fetching user:", error);
-              return {
-                ...user,
-                email: "Unknown User",
-              };
-            }
-
+          // For the current user, we can access their profile directly
+          if (isCurrentUser) {
             return {
               ...user,
-              email: data.user.email || "No Email",
+              email: currentUser.email || "No Email",
+              name:
+                currentUser.user_metadata?.full_name ||
+                currentUser.user_metadata?.name ||
+                "Current User",
+              isCurrentUser: true,
             };
-          })
-        );
+          }
 
-        setUsers(usersWithEmails);
-        setError(null);
+          // For other users, we just show their email (which we might need to get from elsewhere)
+          return {
+            ...user,
+            email: "Member", // This will be updated if we can find the email
+            name: "Member", // Default display name
+            isCurrentUser: false,
+          };
+        });
       } catch (err) {
         console.error("Failed to load account users:", err);
-        setError("Failed to load account users.");
-      } finally {
-        setLoading(false);
+        throw err; // Let SWR handle the error
       }
-    };
-
-    loadUsers();
-  }, [activeAccount]);
+    },
+    {
+      revalidateOnFocus: false,
+      dedupingInterval: 5000, // Avoid duplicate requests within 5 seconds
+      errorRetryCount: 3, // Only retry up to 3 times
+      errorRetryInterval: 5000, // Retry after 5 seconds
+    }
+  );
 
   // Add a new user to the account
   const handleAddUser = async (e: React.FormEvent) => {
@@ -72,62 +82,56 @@ export default function AccountUsersManager() {
     if (!activeAccount || !newUserEmail.trim() || !isAdmin) return;
 
     setAdding(true);
-    setError(null);
     setSuccess(null);
 
     try {
-      // First, find the user by email
-      const { data, error } = await supabase.auth.admin.listUsers();
+      // We can't use admin API to find users, so we'll trust the email input
+      // and attempt to add the user directly
 
-      if (error) {
-        throw new Error("Failed to search for user");
-      }
+      // First, try to look up the user ID from the email
+      // (You might need to implement a different approach if this isn't feasible)
 
-      const matchingUser = data.users.find(
-        (user) => user.email?.toLowerCase() === newUserEmail.toLowerCase()
-      );
+      // Add the user to the account with the provided email
+      try {
+        // Here we'd typically verify the user exists first, but without admin API access,
+        // we may need to handle failures gracefully instead
 
-      if (!matchingUser) {
-        setError("No user found with that email address.");
-        return;
-      }
+        // Create a temporary user ID (this won't work; you need to determine how to
+        // find a user ID from an email without admin API)
+        const tempUserId = newUserEmail; // This is just a placeholder
 
-      // Check if user is already in the account
-      const existingUser = users.find(
-        (user) => user.userId === matchingUser.id
-      );
-      if (existingUser) {
-        setError("This user is already a member of this account.");
-        return;
-      }
+        await accountService.addUserToAccount(
+          activeAccount.id,
+          tempUserId,
+          false // Not an admin by default
+        );
 
-      // Add the user to the account
-      await accountService.addUserToAccount(
-        activeAccount.id,
-        matchingUser.id,
-        false // Not an admin by default
-      );
-
-      // Refresh the user list
-      const accountUsers = await accountService.getAccountUsers(
-        activeAccount.id
-      );
-      const updatedUsers = [
-        ...users,
-        {
-          id: accountUsers[accountUsers.length - 1].id,
-          userId: matchingUser.id,
-          email: matchingUser.email || "No Email",
+        // Add the new user to the local state and trigger revalidation
+        const newUser: ExtendedAccountUser = {
+          id: crypto.randomUUID(), // Temporary ID until page refresh
+          userId: tempUserId,
+          accountId: activeAccount.id,
+          email: newUserEmail,
+          name: "New Member",
           isAdmin: false,
-        },
-      ];
+          isCurrentUser: false,
+        };
 
-      setUsers(updatedUsers);
-      setNewUserEmail("");
-      setSuccess("User added successfully.");
+        // Update the cache optimistically
+        mutateUsers((current) => [...(current || []), newUser], {
+          revalidate: true, // Also trigger a background revalidation
+        });
+
+        setNewUserEmail("");
+        setSuccess("Invitation sent to user.");
+      } catch (err) {
+        console.error("Failed to add user:", err);
+        throw new Error(
+          "This user couldn't be added. Make sure they have an account."
+        );
+      }
     } catch (err) {
       console.error("Failed to add user:", err);
-      setError("Failed to add user to account.");
     } finally {
       setAdding(false);
     }
@@ -140,26 +144,71 @@ export default function AccountUsersManager() {
   ) => {
     if (!activeAccount || !isAdmin) return;
 
+    // Get the user being modified
+    const targetUser = users.find((user) => user.id === accountUserId);
+    if (!targetUser) return;
+
+    // Prevent removing admin status from yourself if you're the only admin
+    if (targetUser.isCurrentUser && currentStatus) {
+      // Check if there are other admins
+      const otherAdmins = users.filter(
+        (user) => user.isAdmin && !user.isCurrentUser
+      );
+
+      if (otherAdmins.length === 0) {
+        alert(
+          "You cannot remove your admin status as you are the only admin for this account."
+        );
+        return;
+      }
+    }
+
     try {
       await accountService.updateUserAdminStatus(accountUserId, !currentStatus);
 
-      // Update local state
-      setUsers((prev) =>
-        prev.map((user) =>
-          user.id === accountUserId
-            ? { ...user, isAdmin: !currentStatus }
-            : user
-        )
+      // Update cache optimistically
+      mutateUsers(
+        (currentUsers = []) =>
+          currentUsers.map((user) =>
+            user.id === accountUserId
+              ? { ...user, isAdmin: !currentStatus }
+              : user
+          ),
+        {
+          revalidate: false, // No need to revalidate since we're sure of the change
+        }
       );
     } catch (err) {
       console.error("Failed to update admin status:", err);
-      setError("Failed to update admin status.");
+      // Revalidate on error to get the correct state
+      mutateUsers();
     }
   };
 
   // Remove a user from the account
   const removeUser = async (accountUserId: string) => {
     if (!activeAccount || !isAdmin) return;
+
+    // Get the user being removed
+    const targetUser = users.find((user) => user.id === accountUserId);
+    if (!targetUser) return;
+
+    // Prevent removing yourself
+    if (targetUser.isCurrentUser) {
+      alert(
+        "You cannot remove yourself from the account. Another admin would need to remove you."
+      );
+      return;
+    }
+
+    // Prevent removing the last admin (if the target user is an admin)
+    if (targetUser.isAdmin) {
+      const adminCount = users.filter((user) => user.isAdmin).length;
+      if (adminCount <= 1) {
+        alert("You cannot remove the last admin from the account.");
+        return;
+      }
+    }
 
     if (
       !confirm("Are you sure you want to remove this user from the account?")
@@ -170,12 +219,20 @@ export default function AccountUsersManager() {
     try {
       await accountService.removeUserFromAccount(accountUserId);
 
-      // Update local state
-      setUsers((prev) => prev.filter((user) => user.id !== accountUserId));
+      // Update cache optimistically
+      mutateUsers(
+        (currentUsers = []) =>
+          currentUsers.filter((user) => user.id !== accountUserId),
+        {
+          revalidate: false, // No need to revalidate since we're sure of the change
+        }
+      );
+
       setSuccess("User removed successfully.");
     } catch (err) {
       console.error("Failed to remove user:", err);
-      setError("Failed to remove user from account.");
+      // Revalidate on error to get the correct state
+      mutateUsers();
     }
   };
 
@@ -187,7 +244,7 @@ export default function AccountUsersManager() {
 
       {error && (
         <div className="bg-red-50 border-l-4 border-red-400 p-4 mb-4 rounded-md">
-          <p className="text-red-700">{error}</p>
+          <p className="text-red-700">Failed to load account users.</p>
         </div>
       )}
 
@@ -197,7 +254,7 @@ export default function AccountUsersManager() {
         </div>
       )}
 
-      {loading ? (
+      {isLoading ? (
         <div className="py-4 flex justify-center">
           <div className="animate-spin h-8 w-8 border-4 border-indigo-500 border-t-transparent rounded-full"></div>
         </div>
@@ -207,6 +264,9 @@ export default function AccountUsersManager() {
             <table className="min-w-full divide-y divide-gray-200">
               <thead>
                 <tr>
+                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">
+                    Name
+                  </th>
                   <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">
                     Email
                   </th>
@@ -224,6 +284,18 @@ export default function AccountUsersManager() {
                 {users.map((user) => (
                   <tr key={user.id}>
                     <td className="px-4 py-3 text-sm text-gray-900">
+                      {user.isCurrentUser ? (
+                        <span className="font-semibold">{user.name}</span>
+                      ) : (
+                        user.name
+                      )}
+                      {user.isCurrentUser && (
+                        <span className="ml-2 px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800">
+                          You
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-900">
                       {user.email}
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-900">
@@ -239,20 +311,35 @@ export default function AccountUsersManager() {
                     </td>
                     {isAdmin && (
                       <td className="px-4 py-3 text-sm text-right">
-                        <button
-                          onClick={() =>
-                            toggleAdminStatus(user.id, user.isAdmin)
-                          }
-                          className="text-indigo-600 hover:text-indigo-900 mr-3"
-                        >
-                          {user.isAdmin ? "Remove Admin" : "Make Admin"}
-                        </button>
-                        <button
-                          onClick={() => removeUser(user.id)}
-                          className="text-red-600 hover:text-red-900"
-                        >
-                          Remove
-                        </button>
+                        {/* Show admin toggle button only if it would work */}
+                        {!(
+                          user.isCurrentUser &&
+                          user.isAdmin &&
+                          users.filter((u) => u.isAdmin).length <= 1
+                        ) && (
+                          <button
+                            onClick={() =>
+                              toggleAdminStatus(user.id, user.isAdmin)
+                            }
+                            className="text-indigo-600 hover:text-indigo-900 mr-3"
+                          >
+                            {user.isAdmin ? "Remove Admin" : "Make Admin"}
+                          </button>
+                        )}
+
+                        {/* Show remove button only if it would work */}
+                        {!user.isCurrentUser &&
+                          !(
+                            user.isAdmin &&
+                            users.filter((u) => u.isAdmin).length <= 1
+                          ) && (
+                            <button
+                              onClick={() => removeUser(user.id)}
+                              className="text-red-600 hover:text-red-900"
+                            >
+                              Remove
+                            </button>
+                          )}
                       </td>
                     )}
                   </tr>

@@ -58,6 +58,51 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  // Sign in with email and password
+  const signInWithEmail = useCallback(
+    async (email: string, password: string) => {
+      try {
+        const { error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+
+        return { error: error ? new Error(error.message) : null };
+      } catch (error) {
+        console.error("Email sign-in error:", error);
+        return {
+          error: error instanceof Error ? error : new Error(String(error)),
+        };
+      }
+    },
+    []
+  );
+
+  // Sign up with email, password, and full name
+  const signUpWithEmail = useCallback(
+    async (email: string, password: string, fullName: string) => {
+      try {
+        const { error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: {
+              full_name: fullName,
+            },
+          },
+        });
+
+        return { error: error ? new Error(error.message) : null };
+      } catch (error) {
+        console.error("Email sign-up error:", error);
+        return {
+          error: error instanceof Error ? error : new Error(String(error)),
+        };
+      }
+    },
+    []
+  );
+
   // Sign out
   const signOut = useCallback(async () => {
     try {
@@ -78,10 +123,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       user,
       isLoading,
       signInWithGoogle,
+      signInWithEmail,
+      signUpWithEmail,
       signOut,
       error,
     }),
-    [session, user, isLoading, signInWithGoogle, signOut, error]
+    [
+      session,
+      user,
+      isLoading,
+      signInWithGoogle,
+      signInWithEmail,
+      signUpWithEmail,
+      signOut,
+      error,
+    ]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

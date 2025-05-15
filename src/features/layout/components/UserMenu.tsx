@@ -1,7 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { useAuth } from "../../auth/hooks/useAuth";
 import { useAccount } from "../../account/hooks/useAccount";
-import AccountSwitcher from "../../account/components/AccountSwitcher";
 
 interface UserMenuProps {
   onOpenFamilySettings: () => void;
@@ -49,11 +48,11 @@ export default function UserMenu({
   return (
     <div className="relative z-40" ref={dropdownRef}>
       <div className="flex items-center">
-        <AccountSwitcher />
+        {/* Account name display removed as per request */}
 
         <button
           onClick={() => setIsOpen(!isOpen)}
-          className="flex items-center text-white focus:outline-none ml-2"
+          className="flex items-center text-white focus:outline-none"
         >
           <div className="flex items-center">
             {avatarUrl ? (

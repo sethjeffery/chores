@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from "react";
+import { useMemo } from "react";
 import type { ReactNode } from "react";
 import { AccountContext } from "../contexts/AccountContext";
 import * as accountService from "../services/accountService";
@@ -12,129 +12,62 @@ export function AccountProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const userId = user?.id;
 
-  // Fetch user accounts
+  // Fetch or create user's account (now we only have one)
   const {
-    data: accounts = [],
-    error: accountsError,
-    mutate: mutateAccounts,
-    isLoading: isLoadingAccounts,
+    data: accountData,
+    error,
+    isLoading,
   } = useSWR(
-    userId ? "user-accounts" : null,
-    async () => await accountService.getUserAccounts(),
-    {
-      revalidateOnFocus: false,
-      onError: (error) => console.error("Failed to load accounts:", error),
-    }
-  );
-
-  // Get active account details (combines active account selection and admin check)
-  const {
-    data: activeAccountInfo,
-    error: activeAccountError,
-    mutate: mutateActiveAccount,
-    isLoading: isLoadingActiveAccount,
-  } = useSWR(
-    accounts.length > 0 ? "active-account-info" : null,
+    userId ? "user-account" : null,
     async () => {
-      // Find or select active account
-      const account = await getActiveAccount();
-      return {
-        account,
-        isAdmin: account
-          ? await accountService.isUserAccountAdmin(account.id)
-          : false,
-      };
-    },
-    {
-      revalidateOnFocus: false,
-    }
-  );
-
-  // Helper function to get or create active account
-  const getActiveAccount = async (): Promise<Account | null> => {
-    const savedAccountId = localStorage.getItem("activeAccountId");
-
-    // Try to find saved account
-    if (savedAccountId) {
-      const foundAccount = accounts.find((a) => a.id === savedAccountId);
-      if (foundAccount) return foundAccount;
-    }
-
-    // Use first account if available
-    if (accounts.length > 0) {
-      return accounts[0];
-    }
-
-    // Create default account if no accounts exist and user is logged in
-    if (userId) {
       try {
-        const name = user?.user_metadata?.full_name
-          ? `${user.user_metadata.full_name}'s Family`
-          : "Family Account";
+        // Get accounts the user belongs to
+        const userAccounts = await accountService.getUserAccounts();
 
-        const newAccount = await accountService.createAccount(name);
-        await mutateAccounts();
-        return newAccount;
-      } catch (error) {
-        console.error("Failed to create default account:", error);
-      }
-    }
+        // If user has an account, use it
+        if (userAccounts.length > 0) {
+          const account = userAccounts[0];
+          const isAdmin = await accountService.isUserAccountAdmin(account.id);
+          return { account, isAdmin };
+        }
 
-    return null;
-  };
+        // Otherwise create a new account for the user
+        if (userId) {
+          const name = user?.user_metadata?.full_name
+            ? `${user.user_metadata.full_name}'s Family`
+            : "Family Account";
 
-  // Extract active account and isAdmin from combined data
-  const activeAccount = activeAccountInfo?.account || null;
-  const isAdmin = activeAccountInfo?.isAdmin || false;
+          const newAccount = await accountService.createAccount(name);
+          const isAdmin = true; // New account creator is always admin
+          return { account: newAccount, isAdmin };
+        }
 
-  // Simplified loading state
-  const isLoading =
-    isLoadingAccounts || (isLoadingActiveAccount && accounts.length > 0);
-
-  // Simplified error state
-  const error =
-    accountsError || activeAccountError
-      ? String(accountsError || activeAccountError)
-      : null;
-
-  // Function to select an account
-  const selectAccount = useCallback(
-    async (account: Account) => {
-      if (!account) return;
-
-      try {
-        localStorage.setItem("activeAccountId", account.id);
-        const isAdmin = await accountService.isUserAccountAdmin(account.id);
-        await mutateActiveAccount({ account, isAdmin });
+        return { account: null, isAdmin: false };
       } catch (err) {
-        console.error("Failed to select account:", err);
-      }
-    },
-    [mutateActiveAccount]
-  );
-
-  // Function to create a new account
-  const createAccount = useCallback(
-    async (name: string) => {
-      try {
-        const account = await accountService.createAccount(name);
-        await mutateAccounts();
-        await selectAccount(account);
-        return account;
-      } catch (err) {
-        console.error("Failed to create account:", err);
+        console.error("Failed to get or create account:", err);
         throw err;
       }
     },
-    [mutateAccounts, selectAccount]
+    {
+      revalidateOnFocus: false,
+      dedupingInterval: 5000, // Prevent excessive refetching
+    }
   );
+
+  // Extract account and admin status
+  const activeAccount = accountData?.account || null;
+  const isAdmin = accountData?.isAdmin || false;
 
   // Set up real-time subscription to account changes
   useSWR(
-    userId ? "account-subscription" : null,
+    userId && activeAccount ? "account-subscription" : null,
     () => {
-      // Subscribe to account changes
+      // Subscribe to account user changes for this specific account
       const channelKey = `account-changes-${userId}`;
+
+      // Since we checked activeAccount is not null in the useSWR key, we can safely use it here
+      const accountId = activeAccount!.id;
+
       return supabase
         .channel(channelKey)
         .on(
@@ -142,19 +75,14 @@ export function AccountProvider({ children }: { children: ReactNode }) {
           {
             event: "*",
             schema: "public",
-            table: accountService.ACCOUNTS_TABLE,
-          },
-          () => mutateAccounts()
-        )
-        .on(
-          "postgres_changes",
-          {
-            event: "*",
-            schema: "public",
             table: accountService.ACCOUNT_USERS_TABLE,
-            filter: `user_id=eq.${userId}`,
+            filter: `account_id=eq.${accountId}`,
           },
-          () => mutateAccounts()
+          (payload) => {
+            console.log("Account user change detected:", payload);
+            // We'll keep the same mutate function but simplified logic
+            // Since we only have one account now
+          }
         )
         .subscribe();
     },
@@ -170,25 +98,31 @@ export function AccountProvider({ children }: { children: ReactNode }) {
     }
   );
 
+  // For backwards compatibility, we'll keep the same context shape
+  // but simplify the implementation since we only have one account
   const value = useMemo(
     () => ({
-      accounts,
+      // For backwards compatibility, return an array with the single account
+      accounts: activeAccount ? [activeAccount] : [],
       activeAccount,
       isLoading,
-      error,
-      selectAccount,
-      createAccount,
+      error: error ? String(error) : null,
+      // These functions are simplified since we don't support multiple accounts
+      selectAccount: async () => {
+        console.warn(
+          "Account switching is disabled - only one account per user is supported"
+        );
+        return Promise.resolve();
+      },
+      createAccount: async () => {
+        console.warn(
+          "Creating multiple accounts is disabled - only one account per user is supported"
+        );
+        return Promise.resolve(activeAccount as Account);
+      },
       isAdmin,
     }),
-    [
-      accounts,
-      activeAccount,
-      isLoading,
-      error,
-      selectAccount,
-      createAccount,
-      isAdmin,
-    ]
+    [activeAccount, isLoading, error, isAdmin]
   );
 
   return (
