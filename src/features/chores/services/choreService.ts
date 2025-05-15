@@ -1,6 +1,47 @@
 import { v4 as uuidv4 } from "uuid";
-import { supabase, CHORES_TABLE, toChore, fromChore } from "../../../supabase";
+import { supabase, CHORES_TABLE } from "../../../supabase";
 import type { Chore, ColumnType } from "../../../types";
+
+// Database type for Supabase
+export type ChoreTable = {
+  id: string;
+  title: string;
+  // Now a UUID reference to family_members.id
+  assignee: string | null;
+  status: string;
+  created_at: string;
+  reward: number | null;
+  icon: string | null;
+  user_id: string | null;
+};
+
+// Convert from DB to app format
+export function toChore(record: ChoreTable): Chore {
+  return {
+    id: record.id,
+    title: record.title,
+    assignee: record.assignee,
+    column: record.status as ColumnType,
+    createdAt: record.created_at,
+    reward: record.reward,
+    icon: record.icon,
+  };
+}
+
+// Convert from app to DB format
+export function fromChore(chore: Partial<Chore>): Partial<ChoreTable> {
+  const result: Partial<ChoreTable> = {};
+
+  if (chore.id !== undefined) result.id = chore.id;
+  if (chore.title !== undefined) result.title = chore.title;
+  if (chore.assignee !== undefined) result.assignee = chore.assignee;
+  if (chore.column !== undefined) result.status = chore.column;
+  if (chore.createdAt !== undefined) result.created_at = chore.createdAt;
+  if (chore.reward !== undefined) result.reward = chore.reward;
+  if (chore.icon !== undefined) result.icon = chore.icon;
+
+  return result;
+}
 
 /**
  * Fetch all chores from Supabase

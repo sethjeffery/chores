@@ -1,7 +1,7 @@
 import { useState, useCallback, useContext, useMemo } from "react";
-import type { Chore, ColumnType } from "../../../types";
+import type { ColumnType, Chore } from "../../../types";
 import ChoreCard from "./ChoreCard";
-import { COLUMNS } from "../../../store";
+import { COLUMNS } from "../constants/columns";
 import { useFamilyContext } from "../../family/hooks/useFamilyContext";
 import DragContext from "../contexts/DragContext";
 import MemberSection from "./MemberSection";

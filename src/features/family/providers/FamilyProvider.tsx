@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { useFamilyMembers } from "../../../store";
+import { useFamilyMembers } from "../hooks/useFamilyMembers";
 import { FamilyContext } from "../contexts/FamilyContext";
 
 // Provider component that wraps parts of the app that need family data

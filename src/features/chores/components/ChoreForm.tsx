@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
-import { useFamilyMembers } from "../../../store";
-import { CHORE_ICONS } from "../../../constants";
+import { useFamilyMembers } from "../../family/hooks/useFamilyMembers";
+import { CHORE_ICONS } from "../constants/icons";
 import ModalDialog from "../../../shared/components/ModalDialog";
 import EmojiPicker from "../../../shared/components/EmojiPicker";
 
@@ -12,6 +12,46 @@ interface ChoreFormProps {
     icon?: string
   ) => void;
 }
+
+// Define chore icon categories
+const choreIconCategories = [
+  {
+    name: "Favorites",
+    emojis: [
+      "🧹", // broom
+      "🧼", // soap
+      "🧽", // sponge
+      "🍽️", // plate with utensils
+      "👕", // t-shirt
+      "💻", // laptop
+      "📚", // books
+      "🧺", // basket
+      "🧷", // safety pin
+      "🧴", // lotion
+      "🚿", // shower
+      "🛁", // bathtub
+      "🛒", // shopping cart
+      "🧩", // puzzle
+      "🧦", // socks
+      "🔧", // wrench
+      "🥄", // spoon
+      "📝", // memo
+      "⚽", // soccer ball
+      "🎵", // music note
+    ],
+  },
+  { name: "Cleaning", start: 0, end: 19 },
+  { name: "Household", start: 20, end: 39 },
+  { name: "Kitchen", start: 40, end: 59 },
+  { name: "Clothes", start: 60, end: 79 },
+  { name: "Electronics", start: 80, end: 99 },
+  { name: "Education", start: 100, end: 119 },
+  { name: "Nature", start: 120, end: 139 },
+  { name: "Animals", start: 140, end: 159 },
+  { name: "Toys", start: 160, end: 179 },
+  { name: "Sports", start: 180, end: 199 },
+  { name: "Misc", start: 200, end: 219 },
+];
 
 export default function ChoreForm({ onAdd }: ChoreFormProps) {
   const [title, setTitle] = useState("");
@@ -36,46 +76,6 @@ export default function ChoreForm({ onAdd }: ChoreFormProps) {
       setIsFormOpen(false);
     }
   };
-
-  // Define chore icon categories
-  const choreIconCategories = [
-    {
-      name: "Favorites",
-      emojis: [
-        "🧹", // broom
-        "🧼", // soap
-        "🧽", // sponge
-        "🍽️", // plate with utensils
-        "👕", // t-shirt
-        "💻", // laptop
-        "📚", // books
-        "🧺", // basket
-        "🧷", // safety pin
-        "🧴", // lotion
-        "🚿", // shower
-        "🛁", // bathtub
-        "🛒", // shopping cart
-        "🧩", // puzzle
-        "🧦", // socks
-        "🔧", // wrench
-        "🥄", // spoon
-        "📝", // memo
-        "⚽", // soccer ball
-        "🎵", // music note
-      ],
-    },
-    { name: "Cleaning", start: 0, end: 19 },
-    { name: "Household", start: 20, end: 39 },
-    { name: "Kitchen", start: 40, end: 59 },
-    { name: "Clothes", start: 60, end: 79 },
-    { name: "Electronics", start: 80, end: 99 },
-    { name: "Education", start: 100, end: 119 },
-    { name: "Nature", start: 120, end: 139 },
-    { name: "Animals", start: 140, end: 159 },
-    { name: "Toys", start: 160, end: 179 },
-    { name: "Sports", start: 180, end: 199 },
-    { name: "Misc", start: 200, end: 219 },
-  ];
 
   return (
     <>

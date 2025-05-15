@@ -1,4 +1,5 @@
-import { useChores, COLUMNS } from "../../../store";
+import { useChores } from "../../chores/hooks/useChores";
+import { COLUMNS } from "../../chores/constants/columns";
 import ColumnSection from "../../chores/components/ColumnSection";
 import ChoreForm from "../../chores/components/ChoreForm";
 import AssigneeDialog from "../../chores/components/AssigneeDialog";

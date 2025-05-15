@@ -1,6 +1,7 @@
 import { v4 as uuidv4 } from "uuid";
 import { supabase } from "../../../supabase";
 import type { FamilyMember } from "../../../types";
+import { DEFAULT_FAMILY_MEMBERS } from "../constants/defaultMembers";
 
 // Table name
 export const FAMILY_MEMBERS_TABLE = "family_members";
@@ -68,43 +69,7 @@ export async function getFamilyMembers(): Promise<FamilyMember[]> {
       console.log(
         "Family members table does not exist yet. Returning default members."
       );
-      return [
-        {
-          id: "default-1",
-          name: "Dad",
-          avatar: "👨",
-          color: "#4f46e5",
-          dob: "1980-06-15",
-        },
-        {
-          id: "default-2",
-          name: "Mum",
-          avatar: "👩",
-          color: "#d946ef",
-          dob: "1982-03-22",
-        },
-        {
-          id: "default-3",
-          name: "Faith",
-          avatar: "👧",
-          color: "#ec4899",
-          dob: "2010-11-05",
-        },
-        {
-          id: "default-4",
-          name: "Harmony",
-          avatar: "👧",
-          color: "#8b5cf6",
-          dob: "2012-07-30",
-        },
-        {
-          id: "default-5",
-          name: "Isaac",
-          avatar: "👦",
-          color: "#3b82f6",
-          dob: "2014-09-18",
-        },
-      ];
+      return DEFAULT_FAMILY_MEMBERS;
     }
 
     throw error;
