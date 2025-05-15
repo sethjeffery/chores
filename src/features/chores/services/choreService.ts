@@ -1,6 +1,6 @@
 import { v4 as uuidv4 } from "uuid";
-import { supabase, CHORES_TABLE, toChore, fromChore } from "../supabase";
-import type { Chore, ColumnType } from "../types";
+import { supabase, CHORES_TABLE, toChore, fromChore } from "../../../supabase";
+import type { Chore, ColumnType } from "../../../types";
 
 /**
  * Fetch all chores from Supabase

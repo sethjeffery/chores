@@ -1,5 +1,5 @@
 import { useCallback, useContext, useRef } from "react";
-import type { Chore } from "../types";
+import type { Chore } from "../../../types";
 import DragContext from "../contexts/DragContext";
 
 interface ChoreCardDragOptions {

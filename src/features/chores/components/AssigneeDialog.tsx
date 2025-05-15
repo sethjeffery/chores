@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
-import { useFamilyContext } from "../hooks/useFamilyContext";
-import type { FamilyMember, ColumnType } from "../types";
-import ModalDialog from "./ModalDialog";
+import { useFamilyContext } from "../../family/hooks/useFamilyContext";
+import type { FamilyMember, ColumnType } from "../../../types";
+import ModalDialog from "../../../shared/components/ModalDialog";
 
 interface AssigneeDialogProps {
   onAssign: (

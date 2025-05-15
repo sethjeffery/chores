@@ -1,5 +1,5 @@
 import { createContext } from "react";
-import type { FamilyMember } from "../types";
+import type { FamilyMember } from "../../../types";
 
 // Define the context type
 export interface FamilyContextType {

@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { useAuth } from "../hooks/useAuth";
+import { useAuth } from "../../auth/hooks/useAuth";
 
 interface UserMenuProps {
   onOpenFamilySettings: () => void;

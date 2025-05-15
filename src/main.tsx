@@ -3,7 +3,7 @@ import ReactDOM from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 import "./index.css";
 import App from "./App.tsx";
-import { AuthProvider } from "./providers/AuthProvider";
+import { AuthProvider } from "./features/auth/providers/AuthProvider.tsx";
 import { registerSW } from "virtual:pwa-register";
 
 // Register service worker

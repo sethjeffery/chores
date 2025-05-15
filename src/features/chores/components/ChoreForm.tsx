@@ -1,8 +1,8 @@
 import { useState, useRef } from "react";
-import { useFamilyMembers } from "../store";
-import { CHORE_ICONS } from "../constants";
-import ModalDialog from "./ModalDialog";
-import EmojiPicker from "./EmojiPicker";
+import { useFamilyMembers } from "../../../store";
+import { CHORE_ICONS } from "../../../constants";
+import ModalDialog from "../../../shared/components/ModalDialog";
+import EmojiPicker from "../../../shared/components/EmojiPicker";
 
 interface ChoreFormProps {
   onAdd: (

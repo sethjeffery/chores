@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import type { Chore, FamilyMember, ColumnType } from "./types";
-import * as choreService from "./services/choreService";
-import * as familyService from "./services/familyService";
+import * as choreService from "./features/chores/services/choreService";
+import * as familyService from "./features/family/services/familyService";
 import type { ChoreTable } from "./supabase";
 import { supabase, CHORES_TABLE, toChore } from "./supabase";
 import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js";

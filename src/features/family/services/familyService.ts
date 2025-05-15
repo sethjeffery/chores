@@ -1,6 +1,6 @@
 import { v4 as uuidv4 } from "uuid";
-import { supabase } from "../supabase";
-import type { FamilyMember } from "../types";
+import { supabase } from "../../../supabase";
+import type { FamilyMember } from "../../../types";
 
 // Table name
 export const FAMILY_MEMBERS_TABLE = "family_members";

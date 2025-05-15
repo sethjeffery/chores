@@ -1,9 +1,9 @@
 import { Routes, Route } from "react-router-dom";
-import { FamilyProvider } from "./providers/FamilyProvider";
-import AppContent from "./components/AppContent";
-import LoginPage from "./components/LoginPage";
-import AuthCallback from "./components/AuthCallback";
-import ProtectedRoute from "./components/ProtectedRoute";
+import { FamilyProvider } from "./features/family/providers/FamilyProvider";
+import AppContent from "./features/layout/components/AppContent";
+import LoginPage from "./features/auth/components/LoginPage";
+import AuthCallback from "./features/auth/components/AuthCallback";
+import ProtectedRoute from "./features/auth/components/ProtectedRoute";
 
 function App() {
   return (

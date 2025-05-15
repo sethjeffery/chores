@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from "react";
-import type { Chore, ColumnType, FamilyMember } from "../types";
+import type { Chore, ColumnType, FamilyMember } from "../../../types";
 import ChoreCard from "./ChoreCard";
 
 interface MemberSectionProps {

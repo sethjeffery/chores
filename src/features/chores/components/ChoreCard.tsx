@@ -1,5 +1,5 @@
-import type { Chore } from "../types";
-import RewardBadge from "./RewardBadge";
+import type { Chore } from "../../../types";
+import RewardBadge from "../../../shared/components/RewardBadge";
 import { useChoreCardDrag } from "../hooks/useChoreCardDrag";
 import { useTouchDevice } from "../hooks/useTouchDevice";
 import { useEffect, useState, useMemo } from "react";

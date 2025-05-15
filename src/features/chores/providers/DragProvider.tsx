@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 import DragContext from "../contexts/DragContext";
-import type { Chore } from "../types";
+import type { Chore } from "../../../types";
 
 function DragProvider({ children }: { children: React.ReactNode }) {
   // Handle drag start - native HTML5 drag and drop

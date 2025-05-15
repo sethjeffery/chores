@@ -1,13 +1,13 @@
-import { useChores, COLUMNS } from "../store";
-import ColumnSection from "./ColumnSection";
-import ChoreForm from "./ChoreForm";
-import AssigneeDialog from "./AssigneeDialog";
-import FamilyMemberForm from "./FamilyMemberForm";
+import { useChores, COLUMNS } from "../../../store";
+import ColumnSection from "../../chores/components/ColumnSection";
+import ChoreForm from "../../chores/components/ChoreForm";
+import AssigneeDialog from "../../chores/components/AssigneeDialog";
+import FamilyMemberForm from "../../family/components/FamilyMemberForm";
 import UserMenu from "./UserMenu";
-import type { ColumnType } from "../types";
+import type { ColumnType } from "../../../types";
 import { useEffect, useCallback, useState } from "react";
-import { useFamilyContext } from "../hooks/useFamilyContext";
-import DragProvider from "../providers/DragProvider";
+import { useFamilyContext } from "../../family/hooks/useFamilyContext";
+import DragProvider from "../../chores/providers/DragProvider";
 
 // Main application component
 export default function AppContent() {

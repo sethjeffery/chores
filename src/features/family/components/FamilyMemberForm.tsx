@@ -1,9 +1,9 @@
 import { useState, useRef, useEffect } from "react";
 import { useFamilyContext } from "../hooks/useFamilyContext";
-import ModalDialog from "./ModalDialog";
-import type { FamilyMember } from "../types";
+import ModalDialog from "../../../shared/components/ModalDialog";
+import type { FamilyMember } from "../../../types";
 import { format } from "date-fns";
-import EmojiPicker from "./EmojiPicker";
+import EmojiPicker from "../../../shared/components/EmojiPicker";
 
 const AVATARS = [
   // People
