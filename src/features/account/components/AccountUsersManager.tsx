@@ -1,8 +1,10 @@
-import { useState } from "react";
 import { useAccount } from "../hooks/useAccount";
 import { useAuth } from "../../auth/hooks/useAuth";
 import * as accountService from "../services/accountService";
+import * as invitationService from "../services/invitationService";
 import useSWR from "swr";
+import QRCode from "react-qr-code";
+import { useState } from "react";
 
 // Defining the extended AccountUser interface based on the original from accountService
 interface ExtendedAccountUser
@@ -16,16 +18,14 @@ interface ExtendedAccountUser
 export default function AccountUsersManager() {
   const { activeAccount, isAdmin } = useAccount();
   const { user: currentUser } = useAuth();
-  const [newUserEmail, setNewUserEmail] = useState("");
-  const [adding, setAdding] = useState(false);
-  const [success, setSuccess] = useState<string | null>(null);
+  const [copySuccess, setCopySuccess] = useState(false);
 
   // Use SWR to fetch and cache account users
   const {
     data: users = [],
-    error,
+    error: usersError,
     mutate: mutateUsers,
-    isLoading,
+    isLoading: isLoadingUsers,
   } = useSWR<ExtendedAccountUser[]>(
     activeAccount ? `account-users-${activeAccount.id}` : null,
     async () => {
@@ -76,66 +76,39 @@ export default function AccountUsersManager() {
     }
   );
 
-  // Add a new user to the account
-  const handleAddUser = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!activeAccount || !newUserEmail.trim() || !isAdmin) return;
+  // Use SWR to fetch and cache the active invitation
+  const {
+    data: invitationUrl,
+    error: invitationError,
+    isLoading: isLoadingInvitation,
+  } = useSWR(
+    activeAccount && isAdmin ? `active-invitation-${activeAccount.id}` : null,
+    async () => {
+      if (!activeAccount) return null;
 
-    setAdding(true);
-    setSuccess(null);
+      // Try to get the latest active invitation
+      let activeInvitation = await invitationService.getLatestActiveInvitation(
+        activeAccount.id
+      );
 
-    try {
-      // We can't use admin API to find users, so we'll trust the email input
-      // and attempt to add the user directly
-
-      // First, try to look up the user ID from the email
-      // (You might need to implement a different approach if this isn't feasible)
-
-      // Add the user to the account with the provided email
-      try {
-        // Here we'd typically verify the user exists first, but without admin API access,
-        // we may need to handle failures gracefully instead
-
-        // Create a temporary user ID (this won't work; you need to determine how to
-        // find a user ID from an email without admin API)
-        const tempUserId = newUserEmail; // This is just a placeholder
-
-        await accountService.addUserToAccount(
-          activeAccount.id,
-          tempUserId,
-          false // Not an admin by default
-        );
-
-        // Add the new user to the local state and trigger revalidation
-        const newUser: ExtendedAccountUser = {
-          id: crypto.randomUUID(), // Temporary ID until page refresh
-          userId: tempUserId,
-          accountId: activeAccount.id,
-          email: newUserEmail,
-          name: "New Member",
-          isAdmin: false,
-          isCurrentUser: false,
-        };
-
-        // Update the cache optimistically
-        mutateUsers((current) => [...(current || []), newUser], {
-          revalidate: true, // Also trigger a background revalidation
-        });
-
-        setNewUserEmail("");
-        setSuccess("Invitation sent to user.");
-      } catch (err) {
-        console.error("Failed to add user:", err);
-        throw new Error(
-          "This user couldn't be added. Make sure they have an account."
+      // If none exists, create a new one
+      if (!activeInvitation) {
+        activeInvitation = await invitationService.createInvitation(
+          activeAccount.id
         );
       }
-    } catch (err) {
-      console.error("Failed to add user:", err);
-    } finally {
-      setAdding(false);
+
+      // Create and store the invitation URL
+      const baseUrl = window.location.origin;
+      return `${baseUrl}/invite/${activeInvitation.token}`;
+    },
+    {
+      revalidateOnFocus: false,
+      dedupingInterval: 60000, // Cache for 1 minute
+      errorRetryCount: 3,
+      refreshInterval: 3600000, // Refresh every hour (3,600,000 ms)
     }
-  };
+  );
 
   // Toggle admin status for a user
   const toggleAdminStatus = async (
@@ -227,8 +200,6 @@ export default function AccountUsersManager() {
           revalidate: false, // No need to revalidate since we're sure of the change
         }
       );
-
-      setSuccess("User removed successfully.");
     } catch (err) {
       console.error("Failed to remove user:", err);
       // Revalidate on error to get the correct state
@@ -236,7 +207,31 @@ export default function AccountUsersManager() {
     }
   };
 
+  // Copy invitation link to clipboard
+  const copyInviteLink = () => {
+    if (!invitationUrl) return;
+
+    navigator.clipboard
+      .writeText(invitationUrl)
+      .then(() => {
+        setCopySuccess(true);
+        // Reset success state after 3 seconds
+        setTimeout(() => setCopySuccess(false), 3000);
+      })
+      .catch((err) => {
+        console.error("Failed to copy link:", err);
+        alert(
+          "Failed to copy link. Please try manually selecting and copying the QR code."
+        );
+      });
+  };
+
   if (!activeAccount) return null;
+
+  // Combine errors for display
+  const error = usersError || invitationError;
+  // Combine loading states
+  const isLoading = isLoadingUsers;
 
   return (
     <div className="bg-white rounded-xl shadow-cartoon p-6">
@@ -244,13 +239,7 @@ export default function AccountUsersManager() {
 
       {error && (
         <div className="bg-red-50 border-l-4 border-red-400 p-4 mb-4 rounded-md">
-          <p className="text-red-700">Failed to load account users.</p>
-        </div>
-      )}
-
-      {success && (
-        <div className="bg-green-50 border-l-4 border-green-400 p-4 mb-4 rounded-md">
-          <p className="text-green-700">{success}</p>
+          <p className="text-red-700">Failed to load data.</p>
         </div>
       )}
 
@@ -349,33 +338,73 @@ export default function AccountUsersManager() {
           </div>
 
           {isAdmin && (
-            <div className="mt-6">
-              <h3 className="text-lg font-medium mb-3">Add User</h3>
-              <form
-                onSubmit={handleAddUser}
-                className="flex items-start space-x-2"
-              >
-                <div className="flex-1">
-                  <input
-                    type="email"
-                    value={newUserEmail}
-                    onChange={(e) => setNewUserEmail(e.target.value)}
-                    placeholder="Enter user's email address"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    disabled={adding}
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    The user must already have an account in the system.
-                  </p>
+            <div className="mt-6 border-t pt-6">
+              <h3 className="text-lg font-medium mb-4">
+                Invite Family Members
+              </h3>
+
+              <div className="bg-gray-50 p-6 rounded-lg">
+                <div className="flex flex-col sm:flex-row items-center gap-6">
+                  {/* QR Code */}
+                  <div className="bg-white p-3 rounded-lg shadow-sm">
+                    {invitationUrl ? (
+                      <QRCode value={invitationUrl} size={150} />
+                    ) : (
+                      <div className="h-[150px] w-[150px] flex items-center justify-center bg-gray-100">
+                        <div className="animate-spin h-8 w-8 border-4 border-indigo-500 border-t-transparent rounded-full"></div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Instructions */}
+                  <div className="flex-1">
+                    <h4 className="text-md font-semibold mb-2">
+                      How to invite family members:
+                    </h4>
+                    <ol className="list-decimal ml-5 text-sm text-gray-600 space-y-1 mb-4">
+                      <li>Have your family member scan this QR code</li>
+                      <li>
+                        They'll need to create a Pocket Bunnies account if they
+                        don't have one
+                      </li>
+                      <li>
+                        After they login, they'll be joined to your family
+                        account
+                      </li>
+                    </ol>
+
+                    <button
+                      onClick={copyInviteLink}
+                      disabled={!invitationUrl || isLoadingInvitation}
+                      className={`px-4 py-2 ${
+                        copySuccess
+                          ? "bg-green-600 hover:bg-green-700"
+                          : "bg-indigo-600 hover:bg-indigo-700"
+                      } text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 flex items-center`}
+                    >
+                      {copySuccess ? (
+                        <>
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            className="h-5 w-5 mr-1"
+                            viewBox="0 0 20 20"
+                            fill="currentColor"
+                          >
+                            <path
+                              fillRule="evenodd"
+                              d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                              clipRule="evenodd"
+                            />
+                          </svg>
+                          Copied!
+                        </>
+                      ) : (
+                        "Copy Invite Link"
+                      )}
+                    </button>
+                  </div>
                 </div>
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                  disabled={!newUserEmail.trim() || adding}
-                >
-                  {adding ? "Adding..." : "Add User"}
-                </button>
-              </form>
+              </div>
             </div>
           )}
         </>

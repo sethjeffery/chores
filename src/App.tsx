@@ -6,6 +6,7 @@ import AppContent from "./features/layout/components/AppContent";
 import LoginPage from "./features/auth/components/LoginPage";
 import AuthCallback from "./features/auth/components/AuthCallback";
 import ProtectedRoute from "./features/auth/components/ProtectedRoute";
+import AccountInvitationPage from "./features/account/components/AccountInvitationPage";
 
 function App() {
   return (
@@ -25,6 +26,14 @@ function App() {
                   <AppContent />
                 </ChoresProvider>
               </FamilyProvider>
+            </AccountProvider>
+          }
+        />
+        <Route
+          path="/invite/:token"
+          element={
+            <AccountProvider>
+              <AccountInvitationPage />
             </AccountProvider>
           }
         />

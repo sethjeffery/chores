@@ -1,4 +1,5 @@
 -- Drop table if it exists (comment this out if you don't want to reset existing data)
+DROP TABLE IF EXISTS invitations;
 DROP TABLE IF EXISTS chores;
 DROP TABLE IF EXISTS family_members;
 DROP TABLE IF EXISTS account_users;
@@ -39,6 +40,22 @@ CREATE TABLE family_members (
 -- Create index for querying family members by account
 CREATE INDEX idx_family_members_account_id ON family_members(account_id);
 
+-- Create invitations table for account invites via QR code
+CREATE TABLE invitations (
+  id UUID PRIMARY KEY,
+  account_id UUID NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+  account_name TEXT NOT NULL, -- Store account name for invitees without account access
+  token UUID NOT NULL UNIQUE,
+  created_by UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
+  expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+  is_used BOOLEAN DEFAULT FALSE NOT NULL
+);
+
+-- Create index for querying invitations
+CREATE INDEX idx_invitations_token ON invitations(token);
+CREATE INDEX idx_invitations_account_id ON invitations(account_id);
+
 -- Enable real-time capabilities for the family_members table
 ALTER PUBLICATION supabase_realtime ADD TABLE family_members;
 
@@ -59,10 +76,11 @@ CREATE INDEX idx_chores_status ON chores(status);
 CREATE INDEX idx_chores_account_id ON chores(account_id);
 CREATE INDEX idx_chores_assignee ON chores(assignee);
 
--- Enable real-time capabilities for the chores table
+-- Enable real-time capabilities for the tables
 ALTER PUBLICATION supabase_realtime ADD TABLE chores;
 ALTER PUBLICATION supabase_realtime ADD TABLE account_users;
 ALTER PUBLICATION supabase_realtime ADD TABLE accounts;
+ALTER PUBLICATION supabase_realtime ADD TABLE invitations;
 
 -- Create row-level security policies
 -- Enable Row Level Security
@@ -70,6 +88,7 @@ ALTER TABLE family_members ENABLE ROW LEVEL SECURITY;
 ALTER TABLE chores ENABLE ROW LEVEL SECURITY;
 ALTER TABLE accounts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE account_users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE invitations ENABLE ROW LEVEL SECURITY;
 
 -- Create helper function to safely check account membership
 CREATE OR REPLACE FUNCTION is_account_member(account_id UUID) RETURNS BOOLEAN AS $$
@@ -159,6 +178,27 @@ CREATE POLICY "Users can update chores in their accounts" ON chores
   
 CREATE POLICY "Users can delete chores in their accounts" ON chores 
   FOR DELETE USING (is_account_member(account_id));
+
+-- Create policies for invitations
+CREATE POLICY "Users can create invitations" ON invitations
+  FOR INSERT
+  WITH CHECK (
+    -- Only account admins can create invitations
+    is_account_admin(account_id)
+  );
+
+CREATE POLICY "Anyone can read invitations by token" ON invitations
+  FOR SELECT
+  USING (true);
+
+CREATE POLICY "Anyone can mark invitations as used" ON invitations
+  FOR UPDATE
+  USING (true)
+  WITH CHECK (
+    -- Only updating is_used field and not changing other fields
+    is_used = true AND
+    current_setting('role') = 'authenticated'
+  );
 
 -- Instructions:
 -- 1. Go to your Supabase project dashboard

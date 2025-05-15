@@ -323,3 +323,53 @@ export async function isUserAccountAdmin(accountId: string): Promise<boolean> {
     return false;
   }
 }
+
+/**
+ * Transfer a user from their current account to a new account
+ * This removes the user from their current account and adds them to the new one
+ */
+export async function transferUserToAccount(
+  userId: string,
+  targetAccountId: string,
+  makeAdmin: boolean = false
+): Promise<string> {
+  try {
+    // Get the user's current account
+    const { data: currentAccountUsers, error: fetchError } = await supabase
+      .from(ACCOUNT_USERS_TABLE)
+      .select("id, account_id")
+      .eq("user_id", userId);
+
+    if (fetchError) {
+      console.error("Error fetching user's current accounts:", fetchError);
+      throw fetchError;
+    }
+
+    // Start a transaction to ensure atomicity
+    // Since we can't use actual transactions in Supabase REST API, we'll do our best
+    // to make this as atomic as possible
+
+    // 1. First, add the user to the new account
+    const newAccountUserId = await addUserToAccount(
+      targetAccountId,
+      userId,
+      makeAdmin
+    );
+
+    // 2. Then, remove the user from their current account(s)
+    for (const accountUser of currentAccountUsers || []) {
+      // Skip if it's the target account (should never happen but just in case)
+      if (accountUser.account_id === targetAccountId) continue;
+
+      await removeUserFromAccount(accountUser.id);
+    }
+
+    return newAccountUserId;
+  } catch (error) {
+    console.error(
+      `Error transferring user ${userId} to account ${targetAccountId}:`,
+      error
+    );
+    throw error;
+  }
+}
