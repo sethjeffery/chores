@@ -5,18 +5,37 @@ import { supabase } from "../../../supabase";
 export default function AuthCallback() {
   const navigate = useNavigate();
   const [error, setError] = useState<string | null>(null);
+  const [migrationStatus, setMigrationStatus] = useState<string | null>(null);
 
   useEffect(() => {
     // Handle the OAuth callback
     const handleAuthCallback = async () => {
       try {
         // Get auth info from URL
-        const { error } = await supabase.auth.getSession();
+        const { data, error } = await supabase.auth.getSession();
 
         if (error) {
           setError(error.message);
-        } else {
-          // Redirect to the home page after successful authentication
+          return;
+        }
+
+        if (!data.session) {
+          setError("No session found. Please try again.");
+          return;
+        }
+
+        // Run the migration
+        try {
+          setMigrationStatus("Migrating your data...");
+
+          // Migrate any existing data
+          // await migrateUserDataToAccount(data.session.user.id);
+
+          // Redirect to the home page after successful authentication and migration
+          navigate("/");
+        } catch (migrationError) {
+          console.error("Data migration error:", migrationError);
+          // Continue anyway - even if migration fails, the user should be able to use the app
           navigate("/");
         }
       } catch (err) {
@@ -40,7 +59,8 @@ export default function AuthCallback() {
                 Signing you in...
               </h2>
               <p className="text-gray-500 mt-2">
-                Just a moment while we complete the authentication
+                {migrationStatus ||
+                  "Just a moment while we complete the authentication"}
               </p>
             </div>
           </>

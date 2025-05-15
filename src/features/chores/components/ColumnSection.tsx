@@ -30,7 +30,7 @@ export default function ColumnSection({
   const [dragOverMember, setDragOverMember] = useState<string | null>(null);
   const [isColumnOver, setIsColumnOver] = useState(false);
   const { onDragOver: contextDragOver } = useContext(DragContext);
-  const { familyMembers, loading } = useFamilyContext();
+  const { familyMembers, isLoading } = useFamilyContext();
 
   // Common assignee drop logic
   const handleAssigneeDropLogic = useCallback(
@@ -283,7 +283,7 @@ export default function ColumnSection({
     const result: Record<string, Chore[]> = {};
 
     // Initialize empty arrays for each family member for non-IDEAS columns
-    if (columnId !== "IDEAS" && !loading) {
+    if (columnId !== "IDEAS" && !isLoading) {
       familyMembers.forEach((member) => {
         result[member.id] = [];
       });
@@ -303,7 +303,7 @@ export default function ColumnSection({
     }
 
     return result;
-  }, [columnId, columnChores, familyMembers, loading]);
+  }, [columnId, columnChores, familyMembers, isLoading]);
 
   // Get column description
   const columnDescription = useMemo(
@@ -316,7 +316,7 @@ export default function ColumnSection({
     const totals: Record<string, number> = {};
 
     // Initialize totals for all family members
-    if (!loading) {
+    if (!isLoading) {
       familyMembers.forEach((member) => {
         totals[member.id] = 0;
       });
@@ -338,7 +338,7 @@ export default function ColumnSection({
     }
 
     return totals;
-  }, [chores, familyMembers, loading]);
+  }, [chores, familyMembers, isLoading]);
 
   // Format reward amount
   const formatReward = useCallback((amount: number) => {
@@ -348,7 +348,7 @@ export default function ColumnSection({
   }, []);
 
   // If still loading family members, show placeholder
-  if (loading && columnId !== "IDEAS") {
+  if (isLoading && columnId !== "IDEAS") {
     return (
       <div
         className={`column-item rounded-xl bg-white p-0 border-t-4 ${columnStyle} shadow-xl h-full flex flex-col`}

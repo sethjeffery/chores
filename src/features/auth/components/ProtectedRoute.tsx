@@ -2,10 +2,10 @@ import { Navigate, Outlet } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 
 export default function ProtectedRoute() {
-  const { user, loading } = useAuth();
+  const { user, isLoading } = useAuth();
 
   // Show loading indicator while checking auth state
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-500 via-violet-500 to-purple-500 p-4">
         <div className="bg-white p-8 rounded-2xl shadow-cartoon max-w-md w-full text-center">

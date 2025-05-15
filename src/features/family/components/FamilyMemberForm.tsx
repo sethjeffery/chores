@@ -5,6 +5,9 @@ import type { FamilyMember } from "../../../types";
 import { format } from "date-fns";
 import EmojiPicker from "../../../shared/components/EmojiPicker";
 import { AVATARS, AVATAR_CATEGORIES, COLORS } from "../constants/avatars";
+import useSWRMutation from "swr/mutation";
+import * as familyService from "../services/familyService";
+import { useAccount } from "../../account/hooks/useAccount";
 
 interface FamilyMemberFormProps {
   onAddMember?: (
@@ -16,17 +19,59 @@ interface FamilyMemberFormProps {
   isInModal?: boolean;
 }
 
+// Custom mutation functions for SWR
+async function addMemberMutation(
+  _key: string,
+  {
+    arg,
+  }: {
+    arg: {
+      name: string;
+      avatar: string;
+      color: string;
+      dob: string;
+      accountId: string;
+    };
+  }
+): Promise<FamilyMember> {
+  const { name, avatar, color, dob, accountId } = arg;
+  const id = await familyService.addFamilyMember(
+    { name, avatar, color, dob },
+    accountId
+  );
+  return { id, name, avatar, color, dob };
+}
+
+async function updateMemberMutation(
+  _key: string,
+  { arg }: { arg: { id: string; updates: Partial<FamilyMember> } }
+): Promise<FamilyMember> {
+  const { id, updates } = arg;
+  await familyService.updateFamilyMember(id, updates);
+  return { id, ...updates } as FamilyMember;
+}
+
+async function deleteMemberMutation(
+  _key: string,
+  { arg }: { arg: { id: string } }
+): Promise<{ id: string }> {
+  const { id } = arg;
+  await familyService.deleteFamilyMember(id);
+  return { id };
+}
+
 export default function FamilyMemberForm({
   onAddMember,
   isInModal = true,
 }: FamilyMemberFormProps) {
   const {
     familyMembers,
-    addFamilyMember,
-    updateFamilyMember,
-    deleteFamilyMember,
-    loading,
+    isLoading: isFamilyLoading,
+    mutate: mutateFamilyMembers,
   } = useFamilyContext();
+
+  const { activeAccount } = useAccount();
+  const accountId = activeAccount?.id || "";
 
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isConfirmDeleteOpen, setIsConfirmDeleteOpen] = useState(false);
@@ -43,6 +88,78 @@ export default function FamilyMemberForm({
 
   const modalRef = useRef<HTMLDivElement>(null);
   const confirmModalRef = useRef<HTMLDivElement>(null);
+
+  // SWR mutations
+  const { trigger: triggerAdd, isMutating: isAdding } = useSWRMutation(
+    "add-family-member",
+    addMemberMutation,
+    {
+      onSuccess: (data) => {
+        mutateFamilyMembers(
+          (current = []) => [...current, data as FamilyMember],
+          false
+        );
+
+        // Call the optional callback if provided
+        if (onAddMember && data) {
+          onAddMember(
+            data.name,
+            data.avatar || "",
+            data.color || "",
+            data.dob || ""
+          );
+        }
+
+        setIsFormOpen(false);
+      },
+      onError: (err) => {
+        console.error("Failed to add family member:", err);
+        alert("Failed to add family member. Please try again.");
+      },
+    }
+  );
+
+  const { trigger: triggerUpdate, isMutating: isUpdating } = useSWRMutation(
+    "update-family-member",
+    updateMemberMutation,
+    {
+      onSuccess: (data) => {
+        mutateFamilyMembers(
+          (current = []) =>
+            current.map((member) =>
+              member.id === data.id ? { ...member, ...data } : member
+            ),
+          false
+        );
+        setIsFormOpen(false);
+      },
+      onError: (err) => {
+        console.error("Failed to update family member:", err);
+        alert("Failed to update family member. Please try again.");
+      },
+    }
+  );
+
+  const { trigger: triggerDelete, isMutating: isDeleting } = useSWRMutation(
+    "delete-family-member",
+    deleteMemberMutation,
+    {
+      onSuccess: (data) => {
+        mutateFamilyMembers(
+          (current = []) => current.filter((member) => member.id !== data.id),
+          false
+        );
+        setIsConfirmDeleteOpen(false);
+        setSelectedMember(null);
+      },
+      onError: (err) => {
+        console.error("Failed to delete family member:", err);
+        alert("Failed to delete family member. Please try again.");
+      },
+    }
+  );
+
+  const isLoading = isFamilyLoading || isAdding || isUpdating || isDeleting;
 
   // Reset form when closing
   useEffect(() => {
@@ -91,37 +208,40 @@ export default function FamilyMemberForm({
     setIsConfirmDeleteOpen(true);
   };
 
-  const handleConfirmDelete = async () => {
+  const handleConfirmDelete = () => {
     if (selectedMember) {
-      await deleteFamilyMember(selectedMember.id);
-      setIsConfirmDeleteOpen(false);
-      setSelectedMember(null);
+      triggerDelete({ id: selectedMember.id });
+      // Optimistic UI update is handled in onSuccess callback
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (name.trim() && dob) {
+    if (name.trim() && dob && accountId) {
       if (editMode && selectedMember) {
         // Update existing member
-        await updateFamilyMember(selectedMember.id, {
-          name: name.trim(),
-          avatar,
-          color,
-          dob: dob,
+        triggerUpdate({
+          id: selectedMember.id,
+          updates: {
+            name: name.trim(),
+            avatar,
+            color,
+            dob,
+          },
         });
       } else {
         // Add new member
-        await addFamilyMember(name.trim(), avatar, color, dob);
-
-        // Call the optional callback if provided
-        if (onAddMember) {
-          onAddMember(name.trim(), avatar, color, dob);
-        }
+        triggerAdd({
+          name: name.trim(),
+          avatar,
+          color,
+          dob,
+          accountId,
+        });
       }
 
-      setIsFormOpen(false);
+      // UI updates are handled in onSuccess callbacks
     }
   };
 
@@ -187,7 +307,7 @@ export default function FamilyMemberForm({
 
       {/* List of family members */}
       <div className="bg-white rounded-xl shadow-md overflow-hidden">
-        {loading ? (
+        {isLoading && !familyMembers?.length ? (
           <div className="p-4 text-center text-gray-500">
             Loading family members...
           </div>

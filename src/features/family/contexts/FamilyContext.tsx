@@ -1,10 +1,11 @@
 import { createContext } from "react";
 import type { FamilyMember } from "../../../types";
+import type { KeyedMutator } from "swr";
 
 // Define the context type
 export interface FamilyContextType {
   familyMembers: FamilyMember[];
-  loading: boolean;
+  isLoading: boolean;
   error: string | null;
   addFamilyMember: (
     name: string,
@@ -19,6 +20,7 @@ export interface FamilyContextType {
   deleteFamilyMember: (id: string) => Promise<void>;
   getFamilyMemberById: (id: string | null) => FamilyMember | null;
   getFamilyMemberByName: (name: string) => FamilyMember | null;
+  mutate: KeyedMutator<FamilyMember[]>;
 }
 
 // Create the context with a default value

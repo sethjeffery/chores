@@ -12,7 +12,7 @@ export type ChoreTable = {
   created_at: string;
   reward: number | null;
   icon: string | null;
-  user_id: string | null;
+  account_id: string | null;
 };
 
 // Convert from DB to app format
@@ -44,14 +44,21 @@ export function fromChore(chore: Partial<Chore>): Partial<ChoreTable> {
 }
 
 /**
- * Fetch all chores from Supabase
+ * Fetch all chores from Supabase for a specific account
  */
-export async function getChores(): Promise<Chore[]> {
+export async function getChores(accountId: string): Promise<Chore[]> {
   try {
-    console.log("Attempting to fetch chores from Supabase...");
+    if (!accountId) {
+      throw new Error("Account ID is required to fetch chores");
+    }
+
+    console.log(
+      `Attempting to fetch chores for account ${accountId} from Supabase...`
+    );
     const { data, error } = await supabase
       .from(CHORES_TABLE)
       .select("*")
+      .eq("account_id", accountId)
       .order("created_at", { ascending: false });
 
     if (error) {
@@ -59,7 +66,11 @@ export async function getChores(): Promise<Chore[]> {
       throw error;
     }
 
-    console.log(`Successfully fetched ${data?.length ?? 0} chores`);
+    console.log(
+      `Successfully fetched ${
+        data?.length ?? 0
+      } chores for account ${accountId}`
+    );
     return (data || []).map(toChore);
   } catch (error) {
     console.error("Error fetching chores:", error);
@@ -78,33 +89,26 @@ export async function getChores(): Promise<Chore[]> {
  * Add a new chore to Supabase
  */
 export async function addChore(
-  title: string,
-  assignee: string | null, // Now a UUID reference to family_members.id
-  reward: number | null,
-  icon: string | null,
-  column: ColumnType = assignee ? "TODO" : "IDEAS"
+  chore: Partial<Chore> & { title: string },
+  accountId: string
 ): Promise<string> {
   try {
-    const id = uuidv4();
-
-    // Get current user
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
-      throw new Error("User not authenticated");
+    if (!accountId) {
+      throw new Error("Account ID is required to add a chore");
     }
+
+    const id = uuidv4();
+    const column = chore.column || (chore.assignee ? "TODO" : "IDEAS");
 
     const { error } = await supabase.from(CHORES_TABLE).insert({
       id,
-      title,
-      assignee,
+      title: chore.title,
+      assignee: chore.assignee || null,
       status: column,
-      reward,
-      icon,
+      reward: chore.reward || null,
+      icon: chore.icon || null,
       created_at: new Date().toISOString(),
-      user_id: user.id,
+      account_id: accountId,
     });
 
     if (error) {
@@ -213,6 +217,44 @@ export async function reassignChore(
     }
   } catch (error) {
     console.error(`Error reassigning chore ${id}:`, error);
+    throw error;
+  }
+}
+
+/**
+ * Migrate chores from user_id to account_id
+ * This is a one-time migration function to move existing data
+ */
+export async function migrateChoreToAccount(
+  userId: string,
+  accountId: string
+): Promise<void> {
+  try {
+    // First check if the user_id column exists
+    const { data: columnData, error: columnError } = await supabase
+      .from("information_schema.columns")
+      .select("column_name")
+      .eq("table_name", "chores")
+      .eq("column_name", "user_id")
+      .single();
+
+    if (columnError || !columnData) {
+      console.log("No user_id column in chores table, skipping migration");
+      return;
+    }
+
+    // Update chores with the specified user_id to use the new account_id
+    const { error } = await supabase
+      .from(CHORES_TABLE)
+      .update({ account_id: accountId })
+      .eq("user_id", userId);
+
+    if (error) {
+      console.error("Error migrating chores:", error);
+      throw error;
+    }
+  } catch (error) {
+    console.error("Error migrating chores:", error);
     throw error;
   }
 }

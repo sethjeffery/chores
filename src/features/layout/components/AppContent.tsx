@@ -1,20 +1,22 @@
-import { useChores } from "../../chores/hooks/useChores";
 import { COLUMNS } from "../../chores/constants/columns";
 import ColumnSection from "../../chores/components/ColumnSection";
 import ChoreForm from "../../chores/components/ChoreForm";
 import AssigneeDialog from "../../chores/components/AssigneeDialog";
 import FamilyMemberForm from "../../family/components/FamilyMemberForm";
+import AccountUsersManager from "../../account/components/AccountUsersManager";
 import UserMenu from "./UserMenu";
 import type { ColumnType } from "../../../types";
 import { useEffect, useCallback, useState } from "react";
 import { useFamilyContext } from "../../family/hooks/useFamilyContext";
 import DragProvider from "../../chores/providers/DragProvider";
+import { useAccount } from "../../account/hooks/useAccount";
+import { useChoresContext } from "../../chores/hooks/useChoresContext";
 
 // Main application component
 export default function AppContent() {
   const {
     chores,
-    loading: choresLoading,
+    isLoading: choresLoading,
     backgroundSaving,
     syncStatus,
     error: choresError,
@@ -23,16 +25,19 @@ export default function AppContent() {
     moveChore,
     reassignChore,
     updateChore,
-  } = useChores();
+  } = useChoresContext();
 
   const {
     familyMembers,
-    loading: familyLoading,
+    isLoading: familyLoading,
     error: familyError,
   } = useFamilyContext();
 
+  const { isLoading: accountLoading, error: accountError } = useAccount();
+
   // Track settings modal state
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isAccountSettingsOpen, setIsAccountSettingsOpen] = useState(false);
 
   // Add animation styles for settings dialog
   useEffect(() => {
@@ -57,8 +62,9 @@ export default function AppContent() {
   // Handle escape key to close settings modal
   useEffect(() => {
     const handleEscKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && isSettingsOpen) {
-        setIsSettingsOpen(false);
+      if (event.key === "Escape") {
+        if (isSettingsOpen) setIsSettingsOpen(false);
+        if (isAccountSettingsOpen) setIsAccountSettingsOpen(false);
       }
     };
 
@@ -66,7 +72,7 @@ export default function AppContent() {
     return () => {
       window.removeEventListener("keydown", handleEscKey);
     };
-  }, [isSettingsOpen]);
+  }, [isSettingsOpen, isAccountSettingsOpen]);
 
   // Handle any existing chores assigned to people not in the family members list
   useEffect(() => {
@@ -108,8 +114,8 @@ export default function AppContent() {
     [reassignChore]
   );
 
-  const loading = choresLoading || familyLoading;
-  const error = choresError || familyError;
+  const loading = choresLoading || familyLoading || accountLoading;
+  const error = choresError || familyError || accountError;
 
   // Render loading state
   if (loading && (chores.length === 0 || familyMembers.length === 0)) {
@@ -182,7 +188,10 @@ export default function AppContent() {
         <header className="w-full mb-2 md:mt-2 md:mb-3">
           <div className="relative flex flex-row md:flex-col md:justify-center items-start md:items-center px-4 py-3 max-w-7xl mx-auto">
             <div className="absolute right-4 top-4">
-              <UserMenu onOpenFamilySettings={() => setIsSettingsOpen(true)} />
+              <UserMenu
+                onOpenFamilySettings={() => setIsSettingsOpen(true)}
+                onOpenAccountSettings={() => setIsAccountSettingsOpen(true)}
+              />
             </div>
 
             <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold text-white font-fancy cartoon-text-shadow flex items-center">
@@ -248,20 +257,71 @@ export default function AppContent() {
               <div className="p-6">
                 <div className="flex justify-between items-center mb-5 relative">
                   <h2 className="text-2xl font-bold text-indigo-800 font-fancy">
-                    Family Settings
+                    Family Members
                   </h2>
                   <button
                     onClick={() => setIsSettingsOpen(false)}
-                    className="text-gray-500 hover:text-gray-700 text-xl"
-                    aria-label="Close"
+                    className="text-gray-500 hover:text-gray-800"
                   >
-                    &times;
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className="h-6 w-6"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M6 18L18 6M6 6l12 12"
+                      />
+                    </svg>
                   </button>
                 </div>
-                <p className="text-gray-600 mb-6">
-                  Manage your family members, their avatars, and colors.
-                </p>
-                <FamilyMemberForm isInModal={true} />
+                <FamilyMemberForm />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Account settings dialog */}
+        {isAccountSettingsOpen && (
+          <div
+            className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4 backdrop-blur-sm"
+            onClick={() => setIsAccountSettingsOpen(false)}
+          >
+            <div
+              className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()} // Prevent closing when clicking inside
+              style={{ animation: "dialogFadeIn 0.2s ease-out" }}
+            >
+              <div className="p-6">
+                <div className="flex justify-between items-center mb-5 relative">
+                  <h2 className="text-2xl font-bold text-indigo-800 font-fancy">
+                    Account Settings
+                  </h2>
+                  <button
+                    onClick={() => setIsAccountSettingsOpen(false)}
+                    className="text-gray-500 hover:text-gray-800"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className="h-6 w-6"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M6 18L18 6M6 6l12 12"
+                      />
+                    </svg>
+                  </button>
+                </div>
+                <AccountUsersManager />
               </div>
             </div>
           </div>

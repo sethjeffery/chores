@@ -1,6 +1,29 @@
 -- Drop table if it exists (comment this out if you don't want to reset existing data)
 DROP TABLE IF EXISTS chores;
 DROP TABLE IF EXISTS family_members;
+DROP TABLE IF EXISTS account_users;
+DROP TABLE IF EXISTS accounts;
+
+-- Create accounts table
+CREATE TABLE accounts (
+  id UUID PRIMARY KEY,
+  name TEXT NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Create account_users junction table to link accounts with multiple auth users
+CREATE TABLE account_users (
+  id UUID PRIMARY KEY,
+  account_id UUID REFERENCES accounts(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  is_admin BOOLEAN DEFAULT FALSE,
+  UNIQUE(account_id, user_id)
+);
+
+-- Create index for querying account users
+CREATE INDEX idx_account_users_account_id ON account_users(account_id);
+CREATE INDEX idx_account_users_user_id ON account_users(user_id);
 
 -- Create family_members table
 CREATE TABLE family_members (
@@ -10,11 +33,11 @@ CREATE TABLE family_members (
   avatar TEXT,
   color TEXT,
   dob DATE,
-  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE
+  account_id UUID REFERENCES accounts(id) ON DELETE CASCADE
 );
 
--- Create index for querying family members by user
-CREATE INDEX idx_family_members_user_id ON family_members(user_id);
+-- Create index for querying family members by account
+CREATE INDEX idx_family_members_account_id ON family_members(account_id);
 
 -- Enable real-time capabilities for the family_members table
 ALTER PUBLICATION supabase_realtime ADD TABLE family_members;
@@ -28,69 +51,114 @@ CREATE TABLE chores (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   reward NUMERIC,
   icon TEXT,
-  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE
+  account_id UUID REFERENCES accounts(id) ON DELETE CASCADE
 );
 
 -- Create indexes for faster access
 CREATE INDEX idx_chores_status ON chores(status);
-CREATE INDEX idx_chores_user_id ON chores(user_id);
+CREATE INDEX idx_chores_account_id ON chores(account_id);
 CREATE INDEX idx_chores_assignee ON chores(assignee);
 
 -- Enable real-time capabilities for the chores table
 ALTER PUBLICATION supabase_realtime ADD TABLE chores;
+ALTER PUBLICATION supabase_realtime ADD TABLE account_users;
+ALTER PUBLICATION supabase_realtime ADD TABLE accounts;
 
 -- Create row-level security policies
 -- Enable Row Level Security
 ALTER TABLE family_members ENABLE ROW LEVEL SECURITY;
 ALTER TABLE chores ENABLE ROW LEVEL SECURITY;
+ALTER TABLE accounts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE account_users ENABLE ROW LEVEL SECURITY;
+
+-- Create helper function to safely check account membership
+CREATE OR REPLACE FUNCTION is_account_member(account_id UUID) RETURNS BOOLEAN AS $$
+BEGIN
+  RETURN EXISTS (
+    SELECT 1 FROM account_users
+    WHERE account_users.account_id = is_account_member.account_id
+    AND account_users.user_id = auth.uid()
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Create helper function to check if user is admin of an account
+CREATE OR REPLACE FUNCTION is_account_admin(account_id UUID) RETURNS BOOLEAN AS $$
+BEGIN
+  RETURN EXISTS (
+    SELECT 1 FROM account_users
+    WHERE account_users.account_id = is_account_admin.account_id
+    AND account_users.user_id = auth.uid()
+    AND account_users.is_admin = true
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Create policies for accounts
+CREATE POLICY "Users can view accounts they belong to" ON accounts 
+  FOR SELECT USING (is_account_member(id));
+  
+CREATE POLICY "Users can insert accounts" ON accounts 
+  FOR INSERT WITH CHECK (true);
+
+-- Create policies for account_users
+CREATE POLICY "Users can view their account associations" ON account_users 
+  FOR SELECT USING (
+    -- Users can view their own associations
+    user_id = auth.uid() OR 
+    -- Admins can view all associations for their accounts
+    is_account_admin(account_id)
+  );
+  
+CREATE POLICY "Users can insert their own account associations" ON account_users 
+  FOR INSERT WITH CHECK (user_id = auth.uid());
+  
+CREATE POLICY "Admins can insert account associations" ON account_users 
+  FOR INSERT WITH CHECK (
+    is_account_admin(account_id)
+  );
+  
+CREATE POLICY "Users can update their own account associations" ON account_users 
+  FOR UPDATE USING (user_id = auth.uid());
+
+CREATE POLICY "Admins can update other account associations" ON account_users 
+  FOR UPDATE USING (
+    user_id != auth.uid() AND is_account_admin(account_id)
+  );
+  
+CREATE POLICY "Users can delete their own account associations" ON account_users 
+  FOR DELETE USING (user_id = auth.uid());
+
+CREATE POLICY "Admins can delete other account associations" ON account_users 
+  FOR DELETE USING (
+    user_id != auth.uid() AND is_account_admin(account_id)
+  );
 
 -- Create policies for family_members
-CREATE POLICY "Users can view their own family members" ON family_members 
-  FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Users can view family members in their accounts" ON family_members 
+  FOR SELECT USING (is_account_member(account_id));
   
-CREATE POLICY "Users can insert their own family members" ON family_members 
-  FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can insert family members to their accounts" ON family_members 
+  FOR INSERT WITH CHECK (is_account_member(account_id));
   
-CREATE POLICY "Users can update their own family members" ON family_members 
-  FOR UPDATE USING (auth.uid() = user_id);
+CREATE POLICY "Users can update family members in their accounts" ON family_members 
+  FOR UPDATE USING (is_account_member(account_id));
   
-CREATE POLICY "Users can delete their own family members" ON family_members 
-  FOR DELETE USING (auth.uid() = user_id);
+CREATE POLICY "Users can delete family members in their accounts" ON family_members 
+  FOR DELETE USING (is_account_member(account_id));
 
 -- Create policies for chores
-CREATE POLICY "Users can view their own chores" ON chores 
-  FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Users can view chores in their accounts" ON chores 
+  FOR SELECT USING (is_account_member(account_id));
   
-CREATE POLICY "Users can insert their own chores" ON chores 
-  FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can insert chores to their accounts" ON chores 
+  FOR INSERT WITH CHECK (is_account_member(account_id));
   
-CREATE POLICY "Users can update their own chores" ON chores 
-  FOR UPDATE USING (auth.uid() = user_id);
+CREATE POLICY "Users can update chores in their accounts" ON chores 
+  FOR UPDATE USING (is_account_member(account_id));
   
-CREATE POLICY "Users can delete their own chores" ON chores 
-  FOR DELETE USING (auth.uid() = user_id);
-
--- Optional: Add sample data (comment this out in production)
--- This will only be useful for development
-/*
--- Add sample family members
-INSERT INTO family_members (id, name, created_at, avatar, color, dob, user_id)
-VALUES 
-  ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'Dad', NOW(), '👨', '#4f46e5', '1980-06-15', NULL),
-  ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', 'Mum', NOW(), '👩', '#d946ef', '1982-03-22', NULL),
-  ('cccccccc-cccc-cccc-cccc-cccccccccccc', 'Faith', NOW(), '👧', '#ec4899', '2010-11-05', NULL),
-  ('dddddddd-dddd-dddd-dddd-dddddddddddd', 'Harmony', NOW(), '👧', '#8b5cf6', '2012-07-30', NULL), 
-  ('eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee', 'Isaac', NOW(), '👦', '#3b82f6', '2014-09-18', NULL);
-
--- Add sample data
-INSERT INTO chores (id, title, assignee, status, created_at, reward, icon, user_id)
-VALUES 
-  ('11111111-1111-1111-1111-111111111111', 'Take out trash', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'TODO', NOW(), 2, '🗑️', NULL),
-  ('22222222-2222-2222-2222-222222222222', 'Do homework', 'cccccccc-cccc-cccc-cccc-cccccccccccc', 'TODO', NOW(), 5, '📚', NULL),
-  ('33333333-3333-3333-3333-333333333333', 'Vacuum living room', NULL, 'IDEAS', NOW(), 3, '🧹', NULL),
-  ('44444444-4444-4444-4444-444444444444', 'Wash dishes', 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', 'DONE', NOW(), 2, '🍽️', NULL),
-  ('55555555-5555-5555-5555-555555555555', 'Feed dog', 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee', 'TODO', NOW(), 1, '🐕', NULL);
-*/
+CREATE POLICY "Users can delete chores in their accounts" ON chores 
+  FOR DELETE USING (is_account_member(account_id));
 
 -- Instructions:
 -- 1. Go to your Supabase project dashboard
@@ -105,4 +173,4 @@ VALUES
 -- 7. Enable real-time for your project in the Supabase dashboard:
 --    - Go to Database > Replication
 --    - Make sure "Real-time" is turned on
---    - In the table configuration, ensure both "chores" and "family_members" tables are enabled for real-time 
+--    - In the table configuration, ensure the tables are enabled for real-time 

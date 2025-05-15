@@ -18,12 +18,7 @@ export default function AssigneeDialog({ onAssign }: AssigneeDialogProps) {
     undefined
   );
   const dialogRef = useRef<HTMLDivElement>(null);
-  const { familyMembers, loading } = useFamilyContext();
-
-  // Debug family members
-  useEffect(() => {
-    console.log("AssigneeDialog familyMembers updated:", familyMembers);
-  }, [familyMembers]);
+  const { familyMembers, isLoading } = useFamilyContext();
 
   // Set up the dialog element for direct DOM manipulation
   // This allows other components to call .showModal() directly
@@ -70,7 +65,7 @@ export default function AssigneeDialog({ onAssign }: AssigneeDialogProps) {
     }
   };
 
-  if (loading) {
+  if (isLoading) {
     return null;
   }
 

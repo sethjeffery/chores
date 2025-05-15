@@ -5,7 +5,7 @@ import type { AuthSession, User } from "@supabase/supabase-js";
 export interface AuthContextType {
   session: AuthSession | null;
   user: User | null;
-  loading: boolean;
+  isLoading: boolean;
   signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
   error: string | null;

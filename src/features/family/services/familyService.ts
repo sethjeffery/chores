@@ -14,7 +14,7 @@ export interface FamilyMemberRecord {
   color?: string | null;
   dob?: string | null;
   created_at?: string;
-  user_id?: string | null;
+  account_id?: string | null;
 }
 
 // Convert from DB to app format
@@ -45,13 +45,23 @@ export function fromFamilyMember(
 
 /**
  * Fetch all family members from Supabase, ordered by age (oldest to youngest)
+ * Now requires an accountId parameter to fetch family members for a specific account
  */
-export async function getFamilyMembers(): Promise<FamilyMember[]> {
+export async function getFamilyMembers(
+  accountId: string
+): Promise<FamilyMember[]> {
   try {
-    console.log("Fetching family members from Supabase...");
+    if (!accountId) {
+      throw new Error("Account ID is required to fetch family members");
+    }
+
+    console.log(
+      `Fetching family members for account ${accountId} from Supabase...`
+    );
     const { data, error } = await supabase
       .from(FAMILY_MEMBERS_TABLE)
       .select("*")
+      .eq("account_id", accountId)
       .order("dob", { ascending: true }); // Order by dob ascending (oldest first)
 
     if (error) {
@@ -59,7 +69,11 @@ export async function getFamilyMembers(): Promise<FamilyMember[]> {
       throw error;
     }
 
-    console.log(`Successfully fetched ${data?.length ?? 0} family members`);
+    console.log(
+      `Successfully fetched ${
+        data?.length ?? 0
+      } family members for account ${accountId}`
+    );
     return (data || []).map(toFamilyMember);
   } catch (error) {
     console.error("Error fetching family members:", error);
@@ -78,32 +92,30 @@ export async function getFamilyMembers(): Promise<FamilyMember[]> {
 
 /**
  * Add a new family member to Supabase
+ * Now requires an accountId parameter to associate the family member with an account
  */
 export async function addFamilyMember(
-  name: string,
-  avatar: string | null = null,
-  color: string | null = null,
-  dob: string | null = null
+  member: Partial<FamilyMember>,
+  accountId: string
 ): Promise<string> {
   try {
-    const id = uuidv4();
-
-    // Get current user
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
-      throw new Error("User not authenticated");
+    if (!accountId) {
+      throw new Error("Account ID is required to add a family member");
     }
+
+    if (!member.name) {
+      throw new Error("Name is required to add a family member");
+    }
+
+    const id = uuidv4();
 
     const { error } = await supabase.from(FAMILY_MEMBERS_TABLE).insert({
       id,
-      name,
-      avatar,
-      color,
-      dob,
-      user_id: user.id,
+      name: member.name,
+      avatar: member.avatar || null,
+      color: member.color || null,
+      dob: member.dob || null,
+      account_id: accountId,
     });
 
     if (error) {
@@ -160,6 +172,46 @@ export async function deleteFamilyMember(id: string): Promise<void> {
     }
   } catch (error) {
     console.error(`Error deleting family member ${id}:`, error);
+    throw error;
+  }
+}
+
+/**
+ * Migrate family members from user_id to account_id
+ * This is a one-time migration function to move existing data
+ */
+export async function migrateFamilyMembersToAccount(
+  userId: string,
+  accountId: string
+): Promise<void> {
+  try {
+    // First check if the user_id column exists
+    const { data: columnData, error: columnError } = await supabase
+      .from("information_schema.columns")
+      .select("column_name")
+      .eq("table_name", "family_members")
+      .eq("column_name", "user_id")
+      .single();
+
+    if (columnError || !columnData) {
+      console.log(
+        "No user_id column in family_members table, skipping migration"
+      );
+      return;
+    }
+
+    // Update family members with the specified user_id to use the new account_id
+    const { error } = await supabase
+      .from(FAMILY_MEMBERS_TABLE)
+      .update({ account_id: accountId })
+      .eq("user_id", userId);
+
+    if (error) {
+      console.error("Error migrating family members:", error);
+      throw error;
+    }
+  } catch (error) {
+    console.error("Error migrating family members:", error);
     throw error;
   }
 }

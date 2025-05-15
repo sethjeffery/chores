@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { useFamilyMembers } from "../../family/hooks/useFamilyMembers";
+import { useFamilyContext } from "../../family/hooks/useFamilyContext";
 import { CHORE_ICONS } from "../constants/icons";
 import ModalDialog from "../../../shared/components/ModalDialog";
 import EmojiPicker from "../../../shared/components/EmojiPicker";
@@ -62,7 +62,7 @@ export default function ChoreForm({ onAdd }: ChoreFormProps) {
   const [isInputFocused, setIsInputFocused] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const modalRef = useRef<HTMLDivElement>(null);
-  const { familyMembers, loading } = useFamilyMembers();
+  const { familyMembers, isLoading } = useFamilyContext();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -171,7 +171,7 @@ export default function ChoreForm({ onAdd }: ChoreFormProps) {
               }}
             >
               <option value="">No Assignee (Idea)</option>
-              {!loading &&
+              {!isLoading &&
                 familyMembers.map((member) => (
                   <option key={member.id} value={member.id}>
                     {member.avatar && `${member.avatar} `}

@@ -1,5 +1,7 @@
 import { Routes, Route } from "react-router-dom";
+import { AccountProvider } from "./features/account/providers/AccountProvider";
 import { FamilyProvider } from "./features/family/providers/FamilyProvider";
+import { ChoresProvider } from "./features/chores/providers/ChoresProvider";
 import AppContent from "./features/layout/components/AppContent";
 import LoginPage from "./features/auth/components/LoginPage";
 import AuthCallback from "./features/auth/components/AuthCallback";
@@ -17,9 +19,13 @@ function App() {
         <Route
           path="/"
           element={
-            <FamilyProvider>
-              <AppContent />
-            </FamilyProvider>
+            <AccountProvider>
+              <FamilyProvider>
+                <ChoresProvider>
+                  <AppContent />
+                </ChoresProvider>
+              </FamilyProvider>
+            </AccountProvider>
           }
         />
       </Route>

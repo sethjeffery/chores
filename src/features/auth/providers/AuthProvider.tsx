@@ -1,42 +1,48 @@
-import { useState, useEffect } from "react";
+import { useCallback, useMemo } from "react";
 import type { ReactNode } from "react";
 import { supabase } from "../../../supabase";
-import type { AuthSession, User } from "@supabase/supabase-js";
 import { AuthContext } from "../contexts/AuthContext";
+import useSWR from "swr";
 
 // Provider component that wraps parts of the app that need auth
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [session, setSession] = useState<AuthSession | null>(null);
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  // Use SWR for handling authentication state
+  const {
+    data: sessionData,
+    error: fetchError,
+    mutate: mutateSession,
+    isLoading,
+  } = useSWR(
+    "auth-session",
+    async () => {
+      const { data } = await supabase.auth.getSession();
+      return data.session;
+    },
+    {
+      revalidateOnFocus: false,
+      suspense: false,
+    }
+  );
 
-  // Effect to handle initial auth state and setup auth subscription
-  useEffect(() => {
-    // Set initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
+  const session = sessionData ?? null;
+  const user = session?.user ?? null;
+  const error = fetchError ? String(fetchError) : null;
 
-    // Subscribe to auth changes
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
+  // Subscribe to auth changes
+  useSWR("auth-subscription", () => {
+    const { data } = supabase.auth.onAuthStateChange(
+      async (_event, session) => {
+        await mutateSession(session);
+      }
+    );
 
-    // Cleanup subscription
-    return () => subscription.unsubscribe();
-  }, []);
+    // Return unsubscribe function for SWR to clean up
+    return data.subscription;
+  });
 
   // Sign in with Google
-  const signInWithGoogle = async () => {
+  const signInWithGoogle = useCallback(async () => {
     try {
-      setError(null);
       const redirectTo = `${window.location.origin}/auth/callback`;
 
       const { error } = await supabase.auth.signInWithOAuth({
@@ -48,40 +54,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw error;
       }
     } catch (error) {
-      if (error instanceof Error) {
-        setError(error.message);
-      } else {
-        setError("An unknown error occurred");
-      }
+      console.error("Google sign-in error:", error);
     }
-  };
+  }, []);
 
   // Sign out
-  const signOut = async () => {
+  const signOut = useCallback(async () => {
     try {
-      setError(null);
       const { error } = await supabase.auth.signOut();
       if (error) {
         throw error;
       }
+      await mutateSession(null);
     } catch (error) {
-      if (error instanceof Error) {
-        setError(error.message);
-      } else {
-        setError("An unknown error occurred");
-      }
+      console.error("Sign out error:", error);
     }
-  };
+  }, [mutateSession]);
 
   // Provider value
-  const value = {
-    session,
-    user,
-    loading,
-    signInWithGoogle,
-    signOut,
-    error,
-  };
+  const value = useMemo(
+    () => ({
+      session,
+      user,
+      isLoading,
+      signInWithGoogle,
+      signOut,
+      error,
+    }),
+    [session, user, isLoading, signInWithGoogle, signOut, error]
+  );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
