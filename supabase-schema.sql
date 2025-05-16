@@ -19,6 +19,8 @@ CREATE TABLE account_users (
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   is_admin BOOLEAN DEFAULT FALSE,
+  user_email TEXT,
+  user_name TEXT,
   UNIQUE(account_id, user_id)
 );
 

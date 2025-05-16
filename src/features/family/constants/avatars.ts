@@ -76,8 +76,8 @@ export const AVATARS = [
   "👽", // alien
   "👾", // alien monster
   "🤖", // robot
-  "🎃", // jack-o-lantern
-  "😺", // smiling cat
+  "🏍️", // motorcycle
+  "🏎️", // racing car
   "🦄", // unicorn
   "🦖", // t-rex dinosaur
   "🧚", // fairy

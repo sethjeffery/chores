@@ -18,6 +18,8 @@ export interface AccountUserRecord {
   user_id: string;
   created_at?: string;
   is_admin: boolean;
+  user_email?: string;
+  user_name?: string;
 }
 
 // App-level types
@@ -31,6 +33,8 @@ export interface AccountUser {
   accountId: string;
   userId: string;
   isAdmin: boolean;
+  email?: string;
+  name?: string;
 }
 
 // Conversion functions
@@ -47,6 +51,8 @@ export function toAccountUser(record: AccountUserRecord): AccountUser {
     accountId: record.account_id,
     userId: record.user_id,
     isAdmin: record.is_admin,
+    email: record.user_email || "",
+    name: record.user_name || "Member",
   };
 }
 
@@ -209,15 +215,43 @@ export async function getAccountUsers(
 export async function addUserToAccount(
   accountId: string,
   userId: string,
-  isAdmin: boolean = false
+  isAdmin: boolean = false,
+  userEmail?: string,
+  userName?: string
 ): Promise<string> {
   try {
     const id = uuidv4();
+
+    // If user info is not provided, try to get it from auth
+    let email = userEmail;
+    let name = userName;
+
+    if (!email || !name) {
+      try {
+        // Try to get user info for the current user
+        const { data: authData } = await supabase.auth.getUser();
+        if (authData.user && authData.user.id === userId) {
+          email = email || authData.user.email;
+          name =
+            name ||
+            authData.user.user_metadata?.full_name ||
+            authData.user.user_metadata?.name ||
+            authData.user.email?.split("@")[0] ||
+            "Member";
+        }
+      } catch (err) {
+        console.error("Error getting user info:", err);
+      }
+    }
+
+    // Insert the account user with available info
     const { error } = await supabase.from(ACCOUNT_USERS_TABLE).insert({
       id,
       account_id: accountId,
       user_id: userId,
       is_admin: isAdmin,
+      user_email: email,
+      user_name: name,
     });
 
     if (error) {
@@ -337,7 +371,7 @@ export async function transferUserToAccount(
     // Get the user's current account
     const { data: currentAccountUsers, error: fetchError } = await supabase
       .from(ACCOUNT_USERS_TABLE)
-      .select("id, account_id")
+      .select("id, account_id, user_email, user_name")
       .eq("user_id", userId);
 
     if (fetchError) {
@@ -345,15 +379,24 @@ export async function transferUserToAccount(
       throw fetchError;
     }
 
+    // Get user info from the current account if available
+    let userEmail, userName;
+    if (currentAccountUsers && currentAccountUsers.length > 0) {
+      userEmail = currentAccountUsers[0].user_email;
+      userName = currentAccountUsers[0].user_name;
+    }
+
     // Start a transaction to ensure atomicity
     // Since we can't use actual transactions in Supabase REST API, we'll do our best
     // to make this as atomic as possible
 
-    // 1. First, add the user to the new account
+    // 1. First, add the user to the new account with their user info
     const newAccountUserId = await addUserToAccount(
       targetAccountId,
       userId,
-      makeAdmin
+      makeAdmin,
+      userEmail,
+      userName
     );
 
     // 2. Then, remove the user from their current account(s)

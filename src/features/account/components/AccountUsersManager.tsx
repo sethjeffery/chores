@@ -42,12 +42,13 @@ export default function AccountUsersManager() {
           // Check if this user is the current logged-in user
           const isCurrentUser = user.userId === currentUser.id;
 
-          // For the current user, we can access their profile directly
+          // For the current user, we can use their profile directly if it's more complete
           if (isCurrentUser) {
             return {
               ...user,
-              email: currentUser.email || "No Email",
+              email: user.email || currentUser.email || "No Email",
               name:
+                user.name ||
                 currentUser.user_metadata?.full_name ||
                 currentUser.user_metadata?.name ||
                 "Current User",
@@ -55,11 +56,9 @@ export default function AccountUsersManager() {
             };
           }
 
-          // For other users, we just show their email (which we might need to get from elsewhere)
+          // For other users, use the information from account_users
           return {
             ...user,
-            email: "Member", // This will be updated if we can find the email
-            name: "Member", // Default display name
             isCurrentUser: false,
           };
         });
