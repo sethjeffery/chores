@@ -2,11 +2,14 @@ import { Routes, Route } from "react-router-dom";
 import { AccountProvider } from "./features/account/providers/AccountProvider";
 import { FamilyProvider } from "./features/family/providers/FamilyProvider";
 import { ChoresProvider } from "./features/chores/providers/ChoresProvider";
+import { OnboardingProvider } from "./features/onboarding/providers/OnboardingProvider";
+import WelcomePage from "./features/onboarding/components/WelcomePage";
 import AppContent from "./features/layout/components/AppContent";
 import LoginPage from "./features/auth/components/LoginPage";
 import AuthCallback from "./features/auth/components/AuthCallback";
 import ProtectedRoute from "./features/auth/components/ProtectedRoute";
 import AccountInvitationPage from "./features/account/components/AccountInvitationPage";
+import SharedChoresList from "./features/chores/components/SharedChoresList";
 
 function App() {
   return (
@@ -23,15 +26,37 @@ function App() {
         }
       />
 
+      {/* Public shared view route - no login required */}
+      <Route path="/shared/:token" element={<SharedChoresList />} />
+
       {/* Protected routes */}
       <Route element={<ProtectedRoute />}>
+        {/* Welcome/Onboarding route */}
+        <Route
+          path="/welcome"
+          element={
+            <AccountProvider>
+              <FamilyProvider>
+                <ChoresProvider>
+                  <OnboardingProvider>
+                    <WelcomePage />
+                  </OnboardingProvider>
+                </ChoresProvider>
+              </FamilyProvider>
+            </AccountProvider>
+          }
+        />
+
+        {/* Main app route */}
         <Route
           path="/"
           element={
             <AccountProvider>
               <FamilyProvider>
                 <ChoresProvider>
-                  <AppContent />
+                  <OnboardingProvider>
+                    <AppContent />
+                  </OnboardingProvider>
                 </ChoresProvider>
               </FamilyProvider>
             </AccountProvider>

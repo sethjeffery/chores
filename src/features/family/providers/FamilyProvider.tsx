@@ -66,32 +66,56 @@ export function FamilyProvider({ children }: { children: ReactNode }) {
             // Get ID safely from the payload
             const changeId = newRecord?.id || oldRecord?.id;
 
-            // Skip if this change originated from this client
-            if (!changeId || localChangesRef.current.has(changeId)) {
-              if (changeId) {
-                localChangesRef.current.delete(changeId);
-              }
+            if (!changeId) {
+              console.warn("Received change event without ID", payload);
               return;
             }
 
-            // Handle optimistic updates based on event type
+            // Skip if this change originated from this client
+            if (localChangesRef.current.has(changeId)) {
+              console.log(`Skipping local change for ID: ${changeId}`);
+              localChangesRef.current.delete(changeId);
+              return;
+            }
+
+            console.log(
+              `Processing remote change for ID: ${changeId}, type: ${eventType}`
+            );
+
+            // Handle updates based on event type
             mutate((currentMembers = []) => {
+              // For INSERT, check if we already have this member to avoid duplicates
               if (eventType === "INSERT" && newRecord) {
-                return [
-                  ...currentMembers,
-                  familyService.toFamilyMember(newRecord),
-                ];
+                // Ensure we don't already have this member
+                const alreadyExists = currentMembers.some(
+                  (member) => member.id === newRecord.id
+                );
+                if (alreadyExists) {
+                  console.log(
+                    `Member ${newRecord.id} already exists, skipping insert`
+                  );
+                  return currentMembers;
+                }
+
+                const newMember = familyService.toFamilyMember(newRecord);
+                console.log(
+                  `Adding new member: ${newMember.name} (${newMember.id})`
+                );
+                return [...currentMembers, newMember];
               } else if (eventType === "UPDATE" && newRecord) {
+                console.log(`Updating member: ${newRecord.id}`);
                 return currentMembers.map((member) =>
                   member.id === newRecord.id
                     ? familyService.toFamilyMember(newRecord)
                     : member
                 );
               } else if (eventType === "DELETE" && oldRecord?.id) {
+                console.log(`Removing member: ${oldRecord.id}`);
                 return currentMembers.filter(
                   (member) => member.id !== oldRecord.id
                 );
               }
+
               return currentMembers;
             }, false); // Don't revalidate after update to avoid race conditions
           }
@@ -133,7 +157,9 @@ export function FamilyProvider({ children }: { children: ReactNode }) {
           dob: dob || null,
         };
 
-        // Update the local state immediately
+        console.log(`Creating family member with temp ID: ${tempId}`);
+
+        // Update the local state immediately (optimistic UI)
         mutate((current = []) => [...current, newMember], false);
 
         // Persist to database
@@ -142,17 +168,35 @@ export function FamilyProvider({ children }: { children: ReactNode }) {
           accountId
         );
 
-        // Add to local changes to prevent duplicate updates
+        console.log(
+          `Received permanent ID: ${permanentId} for temp ID: ${tempId}`
+        );
+
+        // Add to local changes to prevent duplicate updates from realtime
         localChangesRef.current.add(permanentId);
 
-        // Update with permanent ID
-        mutate(
-          (current = []) =>
-            current.map((member) =>
-              member.id === tempId ? { ...member, id: permanentId } : member
-            ),
-          false
-        );
+        // Update local state with permanent ID and remove the temp version
+        mutate((current = []) => {
+          // Remove temp entry
+          const withoutTemp = current.filter((m) => m.id !== tempId);
+
+          // If we somehow already have the permanent ID entry, don't add it again
+          if (withoutTemp.some((m) => m.id === permanentId)) {
+            console.log(
+              `Member with ID ${permanentId} already exists, not adding duplicate`
+            );
+            return withoutTemp;
+          }
+
+          // Create a new member with the permanent ID
+          const memberWithPermanentId = {
+            ...newMember,
+            id: permanentId,
+          };
+
+          console.log(`Replacing temp ID with permanent ID: ${permanentId}`);
+          return [...withoutTemp, memberWithPermanentId];
+        }, false);
 
         return permanentId;
       } catch (err) {

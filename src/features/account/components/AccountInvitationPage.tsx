@@ -4,6 +4,7 @@ import { useAuth } from "../../auth/hooks/useAuth";
 import { useSWRConfig } from "swr";
 import * as invitationService from "../services/invitationService";
 import * as accountService from "../services/accountService";
+import { supabase } from "../../../supabase";
 
 export default function AccountInvitationPage() {
   const { token } = useParams<{ token: string }>();
@@ -15,6 +16,20 @@ export default function AccountInvitationPage() {
   >("loading");
   const [error, setError] = useState<string | null>(null);
   const [accountName, setAccountName] = useState<string>("");
+
+  // User profile information
+  const [userName, setUserName] = useState<string>("");
+  const [isUpdatingProfile, setIsUpdatingProfile] = useState<boolean>(false);
+  const [needsProfileUpdate, setNeedsProfileUpdate] = useState<boolean>(false);
+
+  // Check if user profile needs updating
+  useEffect(() => {
+    if (user) {
+      const userFullName = user.user_metadata?.full_name;
+      setUserName(userFullName || "");
+      setNeedsProfileUpdate(!userFullName);
+    }
+  }, [user]);
 
   // Validate the invitation when the component mounts
   useEffect(() => {
@@ -58,6 +73,34 @@ export default function AccountInvitationPage() {
     await new Promise((resolve) => setTimeout(resolve, 1000));
   };
 
+  // Update user profile
+  const updateUserProfile = async () => {
+    if (!user || !userName.trim()) {
+      setError("Please enter your name");
+      return false;
+    }
+
+    setIsUpdatingProfile(true);
+
+    try {
+      const { error } = await supabase.auth.updateUser({
+        data: { full_name: userName.trim() },
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      return true;
+    } catch (err) {
+      console.error("Error updating profile:", err);
+      setError("Failed to update profile");
+      return false;
+    } finally {
+      setIsUpdatingProfile(false);
+    }
+  };
+
   // Handle joining the account
   const handleJoinAccount = async () => {
     if (!token || !user) {
@@ -65,6 +108,12 @@ export default function AccountInvitationPage() {
       // We'll pass the invitation token so we can redirect back after login
       navigate(`/login?redirect=/invite/${token}`);
       return;
+    }
+
+    // If user needs to update their profile first
+    if (needsProfileUpdate) {
+      const profileUpdated = await updateUserProfile();
+      if (!profileUpdated) return;
     }
 
     setInvitationStatus("processing");
@@ -220,7 +269,64 @@ export default function AccountInvitationPage() {
           </div>
         )}
 
-        {invitationStatus === "valid" && user && (
+        {invitationStatus === "valid" && user && needsProfileUpdate && (
+          <div className="text-center">
+            <img
+              src="/pocket-bunnies-head.png"
+              alt="Pocket Bunnies Logo"
+              className="mx-auto h-16 w-auto mb-4"
+            />
+            <h2 className="text-2xl font-fancy mb-4">Almost There!</h2>
+            <p className="text-gray-600 mb-6">
+              Before you join{" "}
+              <span className="font-semibold">{accountName}</span>, please tell
+              us your name.
+            </p>
+
+            {error && (
+              <div className="mb-4 p-3 bg-red-50 text-red-700 rounded-lg text-sm">
+                {error}
+              </div>
+            )}
+
+            <div className="mb-4">
+              <label
+                htmlFor="fullName"
+                className="block text-sm font-medium text-gray-700 text-left mb-1"
+              >
+                Your Name
+              </label>
+              <input
+                type="text"
+                id="fullName"
+                value={userName}
+                onChange={(e) => setUserName(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
+                placeholder="Enter your name"
+                disabled={isUpdatingProfile}
+              />
+            </div>
+
+            <div className="flex flex-col space-y-3">
+              <button
+                onClick={handleJoinAccount}
+                disabled={isUpdatingProfile}
+                className="w-full px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-70"
+              >
+                {isUpdatingProfile ? "Saving..." : "Continue"}
+              </button>
+              <button
+                onClick={handleCancel}
+                disabled={isUpdatingProfile}
+                className="w-full px-6 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-70"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+
+        {invitationStatus === "valid" && user && !needsProfileUpdate && (
           <div className="text-center">
             <img
               src="/pocket-bunnies-head.png"
@@ -260,6 +366,7 @@ export default function AccountInvitationPage() {
             <h2 className="text-xl font-medium text-gray-700">
               Joining account...
             </h2>
+            <p className="text-gray-500 mt-2">This will just take a moment.</p>
           </div>
         )}
 
@@ -281,10 +388,12 @@ export default function AccountInvitationPage() {
                 />
               </svg>
             </div>
-            <h2 className="text-xl font-fancy text-gray-700 mb-4">Success!</h2>
+            <h2 className="text-xl font-fancy text-gray-700 mb-4">
+              Welcome to {accountName}!
+            </h2>
             <p className="text-gray-600 mb-6">
-              You've successfully joined {accountName}. Redirecting to your
-              dashboard...
+              You have successfully joined the account. You'll be redirected to
+              the dashboard in a moment.
             </p>
           </div>
         )}
@@ -307,25 +416,18 @@ export default function AccountInvitationPage() {
                 />
               </svg>
             </div>
-            <h2 className="text-xl font-fancy text-gray-700 mb-4">Error</h2>
+            <h2 className="text-xl font-fancy text-gray-700 mb-4">
+              Something Went Wrong
+            </h2>
             <p className="text-gray-600 mb-6">
-              {error ||
-                "There was an error joining the account. Please try again."}
+              {error || "There was an error joining the account."}
             </p>
-            <div className="flex flex-col space-y-3">
-              <button
-                onClick={handleJoinAccount}
-                className="w-full px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
-              >
-                Try Again
-              </button>
-              <button
-                onClick={handleCancel}
-                className="w-full px-6 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-              >
-                Cancel
-              </button>
-            </div>
+            <button
+              onClick={handleJoinAccount}
+              className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+            >
+              Try Again
+            </button>
           </div>
         )}
       </div>

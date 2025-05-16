@@ -1,5 +1,5 @@
 import { createContext } from "react";
-import type { Chore } from "../types";
+import type { Chore } from "../../../types";
 
 // Create a context to track the drag state
 interface DragContextType {

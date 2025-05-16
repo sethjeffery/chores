@@ -4,6 +4,7 @@ import ChoreForm from "../../chores/components/ChoreForm";
 import AssigneeDialog from "../../chores/components/AssigneeDialog";
 import FamilyMemberForm from "../../family/components/FamilyMemberForm";
 import AccountUsersManager from "../../account/components/AccountUsersManager";
+import ShareManager from "../../account/components/ShareManager";
 import UserMenu from "./UserMenu";
 import type { ColumnType } from "../../../types";
 import { useEffect, useCallback, useState } from "react";
@@ -11,9 +12,14 @@ import { useFamilyContext } from "../../family/hooks/useFamilyContext";
 import DragProvider from "../../chores/providers/DragProvider";
 import { useAccount } from "../../account/hooks/useAccount";
 import { useChoresContext } from "../../chores/hooks/useChoresContext";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../../auth/hooks/useAuth";
 
 // Main application component
 export default function AppContent() {
+  const navigate = useNavigate();
+  const { user } = useAuth();
+
   const {
     chores,
     isLoading: choresLoading,
@@ -33,11 +39,23 @@ export default function AppContent() {
     error: familyError,
   } = useFamilyContext();
 
-  const { isLoading: accountLoading, error: accountError } = useAccount();
+  const {
+    activeAccount,
+    isLoading: accountLoading,
+    error: accountError,
+  } = useAccount();
+
+  // Redirect to welcome page if user has no account
+  useEffect(() => {
+    if (!accountLoading && user && !activeAccount) {
+      navigate("/welcome");
+    }
+  }, [accountLoading, user, activeAccount, navigate]);
 
   // Track settings modal state
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isAccountSettingsOpen, setIsAccountSettingsOpen] = useState(false);
+  const [isShareSettingsOpen, setIsShareSettingsOpen] = useState(false);
 
   // Add animation styles for settings dialog
   useEffect(() => {
@@ -65,6 +83,7 @@ export default function AppContent() {
       if (event.key === "Escape") {
         if (isSettingsOpen) setIsSettingsOpen(false);
         if (isAccountSettingsOpen) setIsAccountSettingsOpen(false);
+        if (isShareSettingsOpen) setIsShareSettingsOpen(false);
       }
     };
 
@@ -72,7 +91,7 @@ export default function AppContent() {
     return () => {
       window.removeEventListener("keydown", handleEscKey);
     };
-  }, [isSettingsOpen, isAccountSettingsOpen]);
+  }, [isSettingsOpen, isAccountSettingsOpen, isShareSettingsOpen]);
 
   // Handle any existing chores assigned to people not in the family members list
   useEffect(() => {
@@ -116,6 +135,18 @@ export default function AppContent() {
 
   const loading = choresLoading || familyLoading || accountLoading;
   const error = choresError || familyError || accountError;
+
+  if (choresError) {
+    console.error(choresError);
+  }
+
+  if (familyError) {
+    console.error(familyError);
+  }
+
+  if (accountError) {
+    console.error(accountError);
+  }
 
   // Render loading state
   if (loading && (chores.length === 0 || familyMembers.length === 0)) {
@@ -191,6 +222,7 @@ export default function AppContent() {
               <UserMenu
                 onOpenFamilySettings={() => setIsSettingsOpen(true)}
                 onOpenAccountSettings={() => setIsAccountSettingsOpen(true)}
+                onOpenShareSettings={() => setIsShareSettingsOpen(true)}
               />
             </div>
 
@@ -322,6 +354,48 @@ export default function AppContent() {
                   </button>
                 </div>
                 <AccountUsersManager />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Share settings dialog */}
+        {isShareSettingsOpen && (
+          <div
+            className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4 backdrop-blur-sm"
+            onClick={() => setIsShareSettingsOpen(false)}
+          >
+            <div
+              className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()} // Prevent closing when clicking inside
+              style={{ animation: "dialogFadeIn 0.2s ease-out" }}
+            >
+              <div className="p-6">
+                <div className="flex justify-between items-center mb-5 relative">
+                  <h2 className="text-2xl font-bold text-indigo-800 font-fancy">
+                    Share Todo List
+                  </h2>
+                  <button
+                    onClick={() => setIsShareSettingsOpen(false)}
+                    className="text-gray-500 hover:text-gray-800"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className="h-6 w-6"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M6 18L18 6M6 6l12 12"
+                      />
+                    </svg>
+                  </button>
+                </div>
+                <ShareManager />
               </div>
             </div>
           </div>

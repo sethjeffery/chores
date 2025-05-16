@@ -12,7 +12,7 @@ export function AccountProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const userId = user?.id;
 
-  // Fetch or create user's account (now we only have one)
+  // Fetch the user's account (no longer auto-creating)
   const {
     data: accountData,
     error,
@@ -31,20 +31,10 @@ export function AccountProvider({ children }: { children: ReactNode }) {
           return { account, isAdmin };
         }
 
-        // Otherwise create a new account for the user
-        if (userId) {
-          const name = user?.user_metadata?.full_name
-            ? `${user.user_metadata.full_name}'s Family`
-            : "Family Account";
-
-          const newAccount = await accountService.createAccount(name);
-          const isAdmin = true; // New account creator is always admin
-          return { account: newAccount, isAdmin };
-        }
-
+        // No longer auto-creating accounts - this is now handled by onboarding
         return { account: null, isAdmin: false };
       } catch (err) {
-        console.error("Failed to get or create account:", err);
+        console.error("Failed to get account:", err);
         throw err;
       }
     },
@@ -106,7 +96,7 @@ export function AccountProvider({ children }: { children: ReactNode }) {
       accounts: activeAccount ? [activeAccount] : [],
       activeAccount,
       isLoading,
-      error: error ? String(error) : null,
+      error: error ? error?.message ?? String(error) : null,
       // These functions are simplified since we don't support multiple accounts
       selectAccount: async () => {
         console.warn(
@@ -114,11 +104,17 @@ export function AccountProvider({ children }: { children: ReactNode }) {
         );
         return Promise.resolve();
       },
-      createAccount: async () => {
-        console.warn(
-          "Creating multiple accounts is disabled - only one account per user is supported"
-        );
-        return Promise.resolve(activeAccount as Account);
+      createAccount: async (name: string) => {
+        if (activeAccount) {
+          console.warn(
+            "Creating multiple accounts is disabled - only one account per user is supported"
+          );
+          return Promise.resolve(activeAccount as Account);
+        }
+
+        // Allow manual account creation through this method for the onboarding flow
+        const newAccount = await accountService.createAccount(name);
+        return newAccount;
       },
       isAdmin,
     }),

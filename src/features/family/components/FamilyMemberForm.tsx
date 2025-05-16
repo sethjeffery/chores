@@ -5,8 +5,6 @@ import type { FamilyMember } from "../../../types";
 import { format } from "date-fns";
 import EmojiPicker from "../../../shared/components/EmojiPicker";
 import { AVATARS, AVATAR_CATEGORIES, COLORS } from "../constants/avatars";
-import useSWRMutation from "swr/mutation";
-import * as familyService from "../services/familyService";
 import { useAccount } from "../../account/hooks/useAccount";
 
 interface FamilyMemberFormProps {
@@ -19,55 +17,16 @@ interface FamilyMemberFormProps {
   isInModal?: boolean;
 }
 
-// Custom mutation functions for SWR
-async function addMemberMutation(
-  _key: string,
-  {
-    arg,
-  }: {
-    arg: {
-      name: string;
-      avatar: string;
-      color: string;
-      dob: string;
-      accountId: string;
-    };
-  }
-): Promise<FamilyMember> {
-  const { name, avatar, color, dob, accountId } = arg;
-  const id = await familyService.addFamilyMember(
-    { name, avatar, color, dob },
-    accountId
-  );
-  return { id, name, avatar, color, dob };
-}
-
-async function updateMemberMutation(
-  _key: string,
-  { arg }: { arg: { id: string; updates: Partial<FamilyMember> } }
-): Promise<FamilyMember> {
-  const { id, updates } = arg;
-  await familyService.updateFamilyMember(id, updates);
-  return { id, ...updates } as FamilyMember;
-}
-
-async function deleteMemberMutation(
-  _key: string,
-  { arg }: { arg: { id: string } }
-): Promise<{ id: string }> {
-  const { id } = arg;
-  await familyService.deleteFamilyMember(id);
-  return { id };
-}
-
 export default function FamilyMemberForm({
   onAddMember,
   isInModal = true,
 }: FamilyMemberFormProps) {
   const {
     familyMembers,
-    isLoading: isFamilyLoading,
-    mutate: mutateFamilyMembers,
+    isLoading,
+    deleteFamilyMember,
+    updateFamilyMember,
+    addFamilyMember,
   } = useFamilyContext();
 
   const { activeAccount } = useAccount();
@@ -88,78 +47,6 @@ export default function FamilyMemberForm({
 
   const modalRef = useRef<HTMLDivElement>(null);
   const confirmModalRef = useRef<HTMLDivElement>(null);
-
-  // SWR mutations
-  const { trigger: triggerAdd, isMutating: isAdding } = useSWRMutation(
-    "add-family-member",
-    addMemberMutation,
-    {
-      onSuccess: (data) => {
-        mutateFamilyMembers(
-          (current = []) => [...current, data as FamilyMember],
-          false
-        );
-
-        // Call the optional callback if provided
-        if (onAddMember && data) {
-          onAddMember(
-            data.name,
-            data.avatar || "",
-            data.color || "",
-            data.dob || ""
-          );
-        }
-
-        setIsFormOpen(false);
-      },
-      onError: (err) => {
-        console.error("Failed to add family member:", err);
-        alert("Failed to add family member. Please try again.");
-      },
-    }
-  );
-
-  const { trigger: triggerUpdate, isMutating: isUpdating } = useSWRMutation(
-    "update-family-member",
-    updateMemberMutation,
-    {
-      onSuccess: (data) => {
-        mutateFamilyMembers(
-          (current = []) =>
-            current.map((member) =>
-              member.id === data.id ? { ...member, ...data } : member
-            ),
-          false
-        );
-        setIsFormOpen(false);
-      },
-      onError: (err) => {
-        console.error("Failed to update family member:", err);
-        alert("Failed to update family member. Please try again.");
-      },
-    }
-  );
-
-  const { trigger: triggerDelete, isMutating: isDeleting } = useSWRMutation(
-    "delete-family-member",
-    deleteMemberMutation,
-    {
-      onSuccess: (data) => {
-        mutateFamilyMembers(
-          (current = []) => current.filter((member) => member.id !== data.id),
-          false
-        );
-        setIsConfirmDeleteOpen(false);
-        setSelectedMember(null);
-      },
-      onError: (err) => {
-        console.error("Failed to delete family member:", err);
-        alert("Failed to delete family member. Please try again.");
-      },
-    }
-  );
-
-  const isLoading = isFamilyLoading || isAdding || isUpdating || isDeleting;
 
   // Reset form when closing
   useEffect(() => {
@@ -208,40 +95,58 @@ export default function FamilyMemberForm({
     setIsConfirmDeleteOpen(true);
   };
 
-  const handleConfirmDelete = () => {
+  const handleConfirmDelete = async () => {
     if (selectedMember) {
-      triggerDelete({ id: selectedMember.id });
-      // Optimistic UI update is handled in onSuccess callback
+      try {
+        await deleteFamilyMember(selectedMember.id);
+        setIsConfirmDeleteOpen(false);
+        setSelectedMember(null);
+      } catch (err) {
+        console.error("Failed to delete family member:", err);
+        alert("Failed to delete family member. Please try again.");
+      }
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (name.trim() && dob && accountId) {
       if (editMode && selectedMember) {
         // Update existing member
-        triggerUpdate({
-          id: selectedMember.id,
-          updates: {
+        try {
+          await updateFamilyMember(selectedMember.id, {
             name: name.trim(),
             avatar,
             color,
             dob,
-          },
-        });
+          });
+          setIsFormOpen(false);
+        } catch (err) {
+          console.error("Failed to update family member:", err);
+          alert("Failed to update family member. Please try again.");
+        }
       } else {
         // Add new member
-        triggerAdd({
-          name: name.trim(),
-          avatar,
-          color,
-          dob,
-          accountId,
-        });
-      }
+        try {
+          const memberId = await addFamilyMember(
+            name.trim(),
+            avatar,
+            color,
+            dob
+          );
 
-      // UI updates are handled in onSuccess callbacks
+          // Call the optional callback if provided
+          if (onAddMember && memberId) {
+            onAddMember(name.trim(), avatar, color, dob);
+          }
+
+          setIsFormOpen(false);
+        } catch (err) {
+          console.error("Failed to add family member:", err);
+          alert("Failed to add family member. Please try again.");
+        }
+      }
     }
   };
 

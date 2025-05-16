@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { supabase } from "../../../supabase";
 import { AuthContext } from "../contexts/AuthContext";
 import useSWR from "swr";
+import { getError } from "../../../shared/utils/getError";
 
 // Provider component that wraps parts of the app that need auth
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -41,22 +42,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   });
 
   // Sign in with Google
-  const signInWithGoogle = useCallback(async () => {
-    try {
-      const redirectTo = `${window.location.origin}/auth/callback`;
+  const signInWithGoogle = useCallback(
+    async (options?: { redirectTo?: string }) => {
+      try {
+        const redirectTo =
+          options?.redirectTo || `${window.location.origin}/auth/callback`;
 
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: { redirectTo },
-      });
+        const { error } = await supabase.auth.signInWithOAuth({
+          provider: "google",
+          options: { redirectTo },
+        });
 
-      if (error) {
-        throw error;
+        if (error) {
+          throw error;
+        }
+      } catch (error) {
+        console.error("Google sign-in error:", error);
       }
-    } catch (error) {
-      console.error("Google sign-in error:", error);
-    }
-  }, []);
+    },
+    []
+  );
 
   // Sign in with email and password
   const signInWithEmail = useCallback(
@@ -67,11 +72,55 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           password,
         });
 
-        return { error: error ? new Error(error.message) : null };
+        return { error: getError(error) };
       } catch (error) {
         console.error("Email sign-in error:", error);
         return {
-          error: error instanceof Error ? error : new Error(String(error)),
+          error: getError(error),
+        };
+      }
+    },
+    []
+  );
+
+  // Sign in with magic link (passwordless)
+  const signInWithMagicLink = useCallback(
+    async (
+      email: string,
+      options?: { redirectTo?: string; originalRedirect?: string }
+    ) => {
+      try {
+        const redirectTo =
+          options?.redirectTo || `${window.location.origin}/auth/callback`;
+
+        // For email verification/magic links, we need to use emailRedirectTo
+        const { error, data } = await supabase.auth.signInWithOtp({
+          email,
+          options: {
+            emailRedirectTo: redirectTo,
+            // When redirecting from magic links we still need to hit callback endpoint first
+            // Never redirect directly to sensitive routes
+            data:
+              options?.originalRedirect ||
+              options?.redirectTo !== `${window.location.origin}/auth/callback`
+                ? {
+                    // Store the original redirect URL as metadata to be used in the callback
+                    originalRedirect:
+                      options?.originalRedirect || options?.redirectTo,
+                  }
+                : undefined,
+          },
+        });
+
+        return {
+          error: getError(error),
+          sent: !error && !!data,
+        };
+      } catch (error) {
+        console.error("Magic link sign-in error:", error);
+        return {
+          error: getError(error),
+          sent: false,
         };
       }
     },
@@ -92,11 +141,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           },
         });
 
-        return { error: error ? new Error(error.message) : null };
+        return { error: getError(error) };
       } catch (error) {
         console.error("Email sign-up error:", error);
         return {
-          error: error instanceof Error ? error : new Error(String(error)),
+          error: getError(error),
         };
       }
     },
@@ -125,6 +174,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signInWithGoogle,
       signInWithEmail,
       signUpWithEmail,
+      signInWithMagicLink,
       signOut,
       error,
     }),
@@ -135,6 +185,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signInWithGoogle,
       signInWithEmail,
       signUpWithEmail,
+      signInWithMagicLink,
       signOut,
       error,
     ]

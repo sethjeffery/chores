@@ -3,15 +3,17 @@ import { useAuth } from "../hooks/useAuth";
 import { useNavigate, useLocation } from "react-router-dom";
 
 export default function LoginPage() {
-  const { signInWithGoogle, signInWithEmail, signUpWithEmail, error, user } =
-    useAuth();
-  const [isSignUp, setIsSignUp] = useState(false);
-  const [showEmailForm, setShowEmailForm] = useState(false);
+  const {
+    signInWithGoogle,
+    signInWithMagicLink,
+    error: authError,
+    user,
+  } = useAuth();
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [fullName, setFullName] = useState("");
+  const [showEmailForm, setShowEmailForm] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [magicLinkSent, setMagicLinkSent] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -28,7 +30,20 @@ export default function LoginPage() {
 
   const handleGoogleSignIn = async () => {
     try {
-      await signInWithGoogle();
+      // For Google sign-in, we want to redirect to our auth callback first
+      // with the original redirect URL as a parameter
+      const callbackUrl = `${window.location.origin}/auth/callback`;
+
+      // Add redirectTo parameter if we have a redirect URL
+      const finalCallbackUrl =
+        redirectUrl !== "/"
+          ? `${callbackUrl}?redirectTo=${encodeURIComponent(redirectUrl)}`
+          : callbackUrl;
+
+      await signInWithGoogle({
+        redirectTo: finalCallbackUrl,
+      });
+
       // The redirect will happen in the useEffect hook when user is set
     } catch (err) {
       console.error("Google sign in error:", err);
@@ -41,27 +56,27 @@ export default function LoginPage() {
     setIsSubmitting(true);
 
     try {
-      if (isSignUp) {
-        if (!fullName.trim()) {
-          setFormError("Please enter your full name");
-          return;
-        }
+      if (!email.trim()) {
+        setFormError("Please enter your email address");
+        setIsSubmitting(false);
+        return;
+      }
 
-        const { error } = await signUpWithEmail(email, password, fullName);
-        if (error) {
-          setFormError(error.message);
-        } else {
-          // Registration successful - user will be set by AuthProvider
-          // which will trigger the useEffect above
-        }
-      } else {
-        const { error } = await signInWithEmail(email, password);
-        if (error) {
-          setFormError(error.message);
-        } else {
-          // Login successful - user will be set by AuthProvider
-          // which will trigger the useEffect above
-        }
+      // For magic links:
+      // 1. Always redirect to auth callback endpoint first
+      // 2. Pass the original redirect URL so it can be stored in user metadata
+      const options = {
+        redirectTo: `${window.location.origin}/auth/callback`,
+        // Only include originalRedirect if we're not going to the home page
+        ...(redirectUrl !== "/" && { originalRedirect: redirectUrl }),
+      };
+
+      const { error, sent } = await signInWithMagicLink(email, options);
+
+      if (error) {
+        setFormError(error);
+      } else if (sent) {
+        setMagicLinkSent(true);
       }
     } catch (err) {
       setFormError(err instanceof Error ? err.message : String(err));
@@ -70,19 +85,16 @@ export default function LoginPage() {
     }
   };
 
-  const toggleForm = () => {
-    setIsSignUp(!isSignUp);
-    setFormError(null);
-  };
-
   const showEmailSignIn = () => {
     setShowEmailForm(true);
     setFormError(null);
+    setMagicLinkSent(false);
   };
 
   const hideEmailForm = () => {
     setShowEmailForm(false);
     setFormError(null);
+    setMagicLinkSent(false);
   };
 
   // Login form content
@@ -95,22 +107,16 @@ export default function LoginPage() {
           className="mx-auto h-24 w-auto"
         />
         <h2 className="mt-6 text-center text-3xl font-bold text-gray-900 font-fancy">
-          {isSignUp && showEmailForm
-            ? "Create Your Account"
-            : showEmailForm
-            ? "Welcome Back"
-            : "Welcome to Pocket Bunnies"}
+          {showEmailForm ? "Sign In with Email" : "Welcome to Pocket Bunnies"}
         </h2>
         <p className="mt-2 text-center text-sm text-gray-600">
-          {isSignUp && showEmailForm
-            ? "Sign up to manage your family chores"
-            : "Sign in to manage your family chores"}
+          Sign in to manage your family chores
         </p>
       </div>
 
-      {(error || formError) && (
+      {(authError || formError) && (
         <div className="bg-red-50 border-l-4 border-red-400 p-4 rounded-md">
-          <p className="text-red-700 text-sm">{formError || error}</p>
+          <p className="text-red-700 text-sm">{formError || authError}</p>
         </div>
       )}
 
@@ -174,31 +180,48 @@ export default function LoginPage() {
             </span>
           </button>
         </div>
+      ) : magicLinkSent ? (
+        <div className="mt-6 space-y-4">
+          <div className="bg-green-50 p-6 rounded-lg text-center">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-12 w-12 mx-auto text-green-500 mb-3"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M3 19v-8.93a2 2 0 01.89-1.664l7-4.666a2 2 0 012.22 0l7 4.666A2 2 0 0121 10.07V19M3 19a2 2 0 002 2h14a2 2 0 002-2M3 19l6.75-4.5M21 19l-6.75-4.5M3 10l6.75 4.5M21 10l-6.75 4.5m0 0l-1.14.76a2 2 0 01-2.22 0l-1.14-.76"
+              />
+            </svg>
+            <h3 className="text-lg font-medium text-green-800 mb-2">
+              Magic Link Sent!
+            </h3>
+            <p className="text-green-700">
+              We've sent a magic link to <strong>{email}</strong>. Check your
+              email and click the link to sign in.
+            </p>
+          </div>
+
+          <div className="mt-4 text-center text-sm text-gray-500">
+            <p>
+              Didn't receive the email? Check your spam folder or try again.
+            </p>
+            <button
+              type="button"
+              onClick={hideEmailForm}
+              className="mt-4 text-indigo-600 hover:text-indigo-500 focus:outline-none"
+            >
+              ← Back to sign in options
+            </button>
+          </div>
+        </div>
       ) : (
         <>
           <form onSubmit={handleSubmit} className="mt-6 space-y-4">
-            {isSignUp && (
-              <div>
-                <label
-                  htmlFor="fullName"
-                  className="text-sm font-medium text-gray-700 block mb-1"
-                >
-                  Full Name
-                </label>
-                <input
-                  id="fullName"
-                  name="fullName"
-                  type="text"
-                  autoComplete="name"
-                  required
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  className="appearance-none relative block w-full px-3 py-3 border border-gray-300 placeholder-gray-400 text-gray-900 rounded-lg focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                  placeholder="Your full name"
-                />
-              </div>
-            )}
-
             <div>
               <label
                 htmlFor="email"
@@ -216,26 +239,6 @@ export default function LoginPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 className="appearance-none relative block w-full px-3 py-3 border border-gray-300 placeholder-gray-400 text-gray-900 rounded-lg focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
                 placeholder="Email address"
-              />
-            </div>
-
-            <div>
-              <label
-                htmlFor="password"
-                className="text-sm font-medium text-gray-700 block mb-1"
-              >
-                Password
-              </label>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                autoComplete={isSignUp ? "new-password" : "current-password"}
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="appearance-none relative block w-full px-3 py-3 border border-gray-300 placeholder-gray-400 text-gray-900 rounded-lg focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                placeholder={isSignUp ? "Create a password" : "Your password"}
               />
             </div>
 
@@ -269,30 +272,19 @@ export default function LoginPage() {
                     </svg>
                     Processing...
                   </span>
-                ) : isSignUp ? (
-                  "Create Account"
                 ) : (
-                  "Sign In"
+                  "Send Magic Link"
                 )}
               </button>
             </div>
           </form>
 
-          <div className="mt-4 text-center space-y-3">
-            <button
-              type="button"
-              onClick={toggleForm}
-              className="text-sm text-indigo-600 hover:text-indigo-500 focus:outline-none"
-            >
-              {isSignUp
-                ? "Already have an account? Sign in"
-                : "Don't have an account? Sign up"}
-            </button>
-
+          <div className="mt-4 text-center text-sm text-gray-600">
+            <p>We'll send you a magic link to sign in without a password</p>
             <button
               type="button"
               onClick={hideEmailForm}
-              className="block w-full text-sm text-gray-500 hover:text-gray-700 focus:outline-none"
+              className="mt-3 text-indigo-600 hover:text-indigo-500 focus:outline-none"
             >
               ← Back to sign in options
             </button>

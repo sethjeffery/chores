@@ -1,20 +1,21 @@
 -- Drop table if it exists (comment this out if you don't want to reset existing data)
-DROP TABLE IF EXISTS invitations;
-DROP TABLE IF EXISTS chores;
-DROP TABLE IF EXISTS family_members;
-DROP TABLE IF EXISTS account_users;
-DROP TABLE IF EXISTS accounts;
+DROP TABLE IF EXISTS invitations CASCADE;
+DROP TABLE IF EXISTS chores CASCADE;
+DROP TABLE IF EXISTS family_members CASCADE;
+DROP TABLE IF EXISTS account_users CASCADE;
+DROP TABLE IF EXISTS accounts CASCADE;
+DROP TABLE IF EXISTS share_tokens CASCADE;
 
 -- Create accounts table
 CREATE TABLE accounts (
-  id UUID PRIMARY KEY,
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 -- Create account_users junction table to link accounts with multiple auth users
 CREATE TABLE account_users (
-  id UUID PRIMARY KEY,
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   account_id UUID REFERENCES accounts(id) ON DELETE CASCADE,
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -30,7 +31,7 @@ CREATE INDEX idx_account_users_user_id ON account_users(user_id);
 
 -- Create family_members table
 CREATE TABLE family_members (
-  id UUID PRIMARY KEY,
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   avatar TEXT,
@@ -44,10 +45,10 @@ CREATE INDEX idx_family_members_account_id ON family_members(account_id);
 
 -- Create invitations table for account invites via QR code
 CREATE TABLE invitations (
-  id UUID PRIMARY KEY,
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   account_id UUID NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
   account_name TEXT NOT NULL, -- Store account name for invitees without account access
-  token UUID NOT NULL UNIQUE,
+  token UUID NOT NULL UNIQUE DEFAULT gen_random_uuid(),
   created_by UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
   expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
@@ -63,7 +64,7 @@ ALTER PUBLICATION supabase_realtime ADD TABLE family_members;
 
 -- Create chores table with proper schema
 CREATE TABLE chores (
-  id UUID PRIMARY KEY,
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   title TEXT NOT NULL,
   assignee UUID REFERENCES family_members(id) ON DELETE SET NULL,
   status TEXT NOT NULL,
@@ -72,6 +73,21 @@ CREATE TABLE chores (
   icon TEXT,
   account_id UUID REFERENCES accounts(id) ON DELETE CASCADE
 );
+
+-- Create share_tokens table for public read-only access
+CREATE TABLE share_tokens (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  account_id UUID NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+  token TEXT NOT NULL UNIQUE,
+  created_by UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
+  last_used_at TIMESTAMP WITH TIME ZONE
+);
+
+-- Create index for querying tokens
+CREATE INDEX idx_share_tokens_token ON share_tokens(token);
+CREATE INDEX idx_share_tokens_account_id ON share_tokens(account_id);
+CREATE UNIQUE INDEX idx_share_tokens_one_per_account ON share_tokens(account_id);
 
 -- Create indexes for faster access
 CREATE INDEX idx_chores_status ON chores(status);
@@ -83,6 +99,7 @@ ALTER PUBLICATION supabase_realtime ADD TABLE chores;
 ALTER PUBLICATION supabase_realtime ADD TABLE account_users;
 ALTER PUBLICATION supabase_realtime ADD TABLE accounts;
 ALTER PUBLICATION supabase_realtime ADD TABLE invitations;
+ALTER PUBLICATION supabase_realtime ADD TABLE share_tokens;
 
 -- Create row-level security policies
 -- Enable Row Level Security
@@ -91,6 +108,9 @@ ALTER TABLE chores ENABLE ROW LEVEL SECURITY;
 ALTER TABLE accounts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE account_users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE invitations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE share_tokens ENABLE ROW LEVEL SECURITY;
+
+-- Create helper functions for security policies
 
 -- Create helper function to safely check account membership
 CREATE OR REPLACE FUNCTION is_account_member(account_id UUID) RETURNS BOOLEAN AS $$
@@ -112,6 +132,48 @@ BEGIN
     AND account_users.user_id = auth.uid()
     AND account_users.is_admin = true
   );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Helper function to get the current token from the JWT
+CREATE OR REPLACE FUNCTION current_token() RETURNS TEXT AS $$
+DECLARE
+  jwt_claims JSON;
+BEGIN
+  -- Get JWT claims from the current request
+  jwt_claims := current_setting('request.jwt.claims', true)::json;
+  
+  -- Extract the access token (which is the session token)
+  IF jwt_claims IS NOT NULL THEN
+    -- JWT token or session token
+    RETURN jwt_claims ->> 'jti';
+  END IF;
+  
+  RETURN NULL;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Create helper function to check if a share token is valid for an account
+CREATE OR REPLACE FUNCTION is_valid_share_token(account_id UUID, token_header TEXT) RETURNS BOOLEAN AS $$
+DECLARE
+  token_value TEXT;
+  token_record RECORD;
+BEGIN
+  -- Extract the token from the header (Bearer format)
+  token_value := REPLACE(token_header, 'Bearer ', '');
+  
+  -- Check if token exists and is valid for this account
+  SELECT * INTO token_record FROM share_tokens 
+  WHERE share_tokens.token = token_value
+  AND share_tokens.account_id = is_valid_share_token.account_id;
+  
+  -- Update last_used_at if token is found
+  IF FOUND THEN
+    UPDATE share_tokens SET last_used_at = NOW() WHERE token = token_value;
+    RETURN TRUE;
+  ELSE
+    RETURN FALSE;
+  END IF;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
@@ -157,7 +219,18 @@ CREATE POLICY "Admins can delete other account associations" ON account_users
 
 -- Create policies for family_members
 CREATE POLICY "Users can view family members in their accounts" ON family_members 
-  FOR SELECT USING (is_account_member(account_id));
+  FOR SELECT USING (
+    is_account_member(account_id) OR
+    (
+      (current_setting('request.headers.share-token', true) IS NOT NULL AND
+       is_valid_share_token(account_id, current_setting('request.headers.share-token', true)))
+      OR
+      -- Also check if the current session token is a valid share token
+      (current_setting('request.jwt.claims', true)::json ->> 'sub' IS NULL AND
+       current_setting('request.jwt.claims', true)::json ->> 'role' = 'anon' AND
+       is_valid_share_token(account_id, current_token()))
+    )
+  );
   
 CREATE POLICY "Users can insert family members to their accounts" ON family_members 
   FOR INSERT WITH CHECK (is_account_member(account_id));
@@ -170,7 +243,18 @@ CREATE POLICY "Users can delete family members in their accounts" ON family_memb
 
 -- Create policies for chores
 CREATE POLICY "Users can view chores in their accounts" ON chores 
-  FOR SELECT USING (is_account_member(account_id));
+  FOR SELECT USING (
+    is_account_member(account_id) OR
+    (
+      (current_setting('request.headers.share-token', true) IS NOT NULL AND
+       is_valid_share_token(account_id, current_setting('request.headers.share-token', true)))
+      OR
+      -- Also check if the current session token is a valid share token
+      (current_setting('request.jwt.claims', true)::json ->> 'sub' IS NULL AND
+       current_setting('request.jwt.claims', true)::json ->> 'role' = 'anon' AND
+       is_valid_share_token(account_id, current_token()))
+    )
+  );
   
 CREATE POLICY "Users can insert chores to their accounts" ON chores 
   FOR INSERT WITH CHECK (is_account_member(account_id));
@@ -202,6 +286,30 @@ CREATE POLICY "Anyone can mark invitations as used" ON invitations
     current_setting('role') = 'authenticated'
   );
 
+-- Create policies for share_tokens
+CREATE POLICY "Users can view share tokens they created" ON share_tokens
+  FOR SELECT USING (
+    created_by = auth.uid() OR
+    is_account_admin(account_id)
+  );
+
+CREATE POLICY "Admins can create share tokens" ON share_tokens
+  FOR INSERT WITH CHECK (
+    is_account_admin(account_id)
+  );
+
+CREATE POLICY "Admins can update their share tokens" ON share_tokens
+  FOR UPDATE USING (
+    created_by = auth.uid() AND
+    is_account_admin(account_id)
+  );
+
+CREATE POLICY "Admins can delete their share tokens" ON share_tokens
+  FOR DELETE USING (
+    created_by = auth.uid() AND
+    is_account_admin(account_id)
+  );
+
 -- Instructions:
 -- 1. Go to your Supabase project dashboard
 -- 2. Click on SQL Editor
@@ -216,3 +324,19 @@ CREATE POLICY "Anyone can mark invitations as used" ON invitations
 --    - Go to Database > Replication
 --    - Make sure "Real-time" is turned on
 --    - In the table configuration, ensure the tables are enabled for real-time 
+
+-- 8. Enable passwordless authentication (magic link sign-in):
+--    - Go to Authentication > Providers > Email
+--    - Turn OFF "Enable Email Signup" 
+--    - Turn ON "Enable email confirmations" (this is for magic links)
+--    - Under "Customize the email template", personalize the message as needed
+--    - Save changes
+--
+--    In your application code, to implement magic link sign-in:
+--    - Use the Supabase client's auth.signInWithOtp() method:
+--      await supabase.auth.signInWithOtp({ 
+--        email: 'user@example.com',
+--        options: { redirectTo: 'https://yourapp.com/auth/callback' }
+--      });
+--    - This will send a magic link to the user's email
+--    - When they click the link, they'll be signed in without needing a password 

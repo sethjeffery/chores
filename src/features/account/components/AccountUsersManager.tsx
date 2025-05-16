@@ -233,9 +233,7 @@ export default function AccountUsersManager() {
   const isLoading = isLoadingUsers;
 
   return (
-    <div className="bg-white rounded-xl shadow-cartoon p-6">
-      <h2 className="text-2xl font-fancy mb-4">Account Members</h2>
-
+    <>
       {error && (
         <div className="bg-red-50 border-l-4 border-red-400 p-4 mb-4 rounded-md">
           <p className="text-red-700">Failed to load data.</p>
@@ -408,6 +406,6 @@ export default function AccountUsersManager() {
           )}
         </>
       )}
-    </div>
+    </>
   );
 }

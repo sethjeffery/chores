@@ -5,11 +5,13 @@ import { useAccount } from "../../account/hooks/useAccount";
 interface UserMenuProps {
   onOpenFamilySettings: () => void;
   onOpenAccountSettings?: () => void;
+  onOpenShareSettings?: () => void;
 }
 
 export default function UserMenu({
   onOpenFamilySettings,
   onOpenAccountSettings,
+  onOpenShareSettings,
 }: UserMenuProps) {
   const { user, signOut } = useAuth();
   const { isAdmin } = useAccount();
@@ -117,6 +119,21 @@ export default function UserMenu({
                   👥
                 </span>
                 Account Members
+              </button>
+            )}
+
+            {isAdmin && onOpenShareSettings && (
+              <button
+                onClick={() => {
+                  onOpenShareSettings();
+                  setIsOpen(false);
+                }}
+                className="w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 text-left flex items-center"
+              >
+                <span className="mr-2" role="img" aria-label="Child Mode">
+                  🧒
+                </span>
+                Child-friendly Mode
               </button>
             )}
 
