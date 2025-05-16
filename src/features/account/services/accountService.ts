@@ -364,6 +364,37 @@ export async function transferUserToAccount(
       await removeUserFromAccount(accountUser.id);
     }
 
+    // 3. Delete the old account if it's empty
+    for (const accountUser of currentAccountUsers || []) {
+      // Skip if it's the target account
+      if (accountUser.account_id === targetAccountId) continue;
+
+      // Check if this was the last user in the account
+      const { data: remainingUsers, error: countError } = await supabase
+        .from(ACCOUNT_USERS_TABLE)
+        .select("id")
+        .eq("account_id", accountUser.account_id);
+
+      if (countError) {
+        console.error("Error checking remaining users in account:", countError);
+        continue; // Skip deletion if we can't verify it's empty
+      }
+
+      // If there are no users left, delete the account
+      if (remainingUsers.length === 0) {
+        const { error: deleteError } = await supabase
+          .from(ACCOUNTS_TABLE)
+          .delete()
+          .eq("id", accountUser.account_id);
+
+        if (deleteError) {
+          console.error("Error deleting empty account:", deleteError);
+        } else {
+          console.log(`Deleted empty account ${accountUser.account_id}`);
+        }
+      }
+    }
+
     return newAccountUserId;
   } catch (error) {
     console.error(

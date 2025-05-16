@@ -19,7 +19,7 @@ export default function AccountInvitationPage() {
   // Validate the invitation when the component mounts
   useEffect(() => {
     async function validateInvitation() {
-      if (!token || !user) return;
+      if (!token) return;
 
       try {
         const { valid, invitation, error } =
@@ -44,7 +44,7 @@ export default function AccountInvitationPage() {
     }
 
     validateInvitation();
-  }, [token, user]);
+  }, [token]);
 
   // Refresh all data after joining an account
   const refreshAllData = async () => {
@@ -60,7 +60,12 @@ export default function AccountInvitationPage() {
 
   // Handle joining the account
   const handleJoinAccount = async () => {
-    if (!token || !user) return;
+    if (!token || !user) {
+      // If user is not logged in, redirect to login page
+      // We'll pass the invitation token so we can redirect back after login
+      navigate(`/login?redirect=/invite/${token}`);
+      return;
+    }
 
     setInvitationStatus("processing");
     setError(null);
@@ -104,12 +109,21 @@ export default function AccountInvitationPage() {
     }
   };
 
+  // Redirect to login page with return URL
+  const handleLogin = () => {
+    if (token) {
+      navigate(`/login?redirect=/invite/${token}`);
+    } else {
+      navigate("/login");
+    }
+  };
+
   // Return to homepage
   const handleCancel = () => {
     navigate("/");
   };
 
-  if (!token || !user) {
+  if (!token) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-500 via-violet-500 to-purple-500 px-4 py-12">
         <div className="bg-white rounded-2xl shadow-cartoon p-8 max-w-md w-full text-center">
@@ -173,7 +187,40 @@ export default function AccountInvitationPage() {
           </div>
         )}
 
-        {invitationStatus === "valid" && (
+        {invitationStatus === "valid" && !user && (
+          <div className="text-center">
+            <img
+              src="/pocket-bunnies-head.png"
+              alt="Pocket Bunnies Logo"
+              className="mx-auto h-16 w-auto mb-4"
+            />
+            <h2 className="text-2xl font-fancy mb-4">Join Family Account</h2>
+            <p className="text-gray-600 mb-6">
+              You've been invited to join{" "}
+              <span className="font-semibold">{accountName}</span>!
+            </p>
+            <p className="text-gray-600 mb-8">
+              To join this family account, you'll need to login or create an
+              account first.
+            </p>
+            <div className="flex flex-col space-y-3">
+              <button
+                onClick={handleLogin}
+                className="w-full px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+              >
+                Login or Create Account
+              </button>
+              <button
+                onClick={handleCancel}
+                className="w-full px-6 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+
+        {invitationStatus === "valid" && user && (
           <div className="text-center">
             <img
               src="/pocket-bunnies-head.png"

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "../hooks/useAuth";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 
 export default function LoginPage() {
   const { signInWithGoogle, signInWithEmail, signUpWithEmail, error, user } =
@@ -13,13 +13,27 @@ export default function LoginPage() {
   const [formError, setFormError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
 
-  // Redirect to home if already authenticated
+  // Get the redirect URL from the query parameters
+  const searchParams = new URLSearchParams(location.search);
+  const redirectUrl = searchParams.get("redirect") || "/";
+
+  // Redirect to redirect URL or home if already authenticated
   useEffect(() => {
     if (user) {
-      navigate("/");
+      navigate(redirectUrl);
     }
-  }, [user, navigate]);
+  }, [user, navigate, redirectUrl]);
+
+  const handleGoogleSignIn = async () => {
+    try {
+      await signInWithGoogle();
+      // The redirect will happen in the useEffect hook when user is set
+    } catch (err) {
+      console.error("Google sign in error:", err);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -103,7 +117,7 @@ export default function LoginPage() {
       {!showEmailForm ? (
         <div className="mt-8 space-y-4">
           <button
-            onClick={signInWithGoogle}
+            onClick={handleGoogleSignIn}
             type="button"
             className="group relative w-full flex justify-center py-3 px-4 border-transparent text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 shadow-sm"
           >
