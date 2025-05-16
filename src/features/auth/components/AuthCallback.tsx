@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "../../../supabase";
+import { ExclamationMarkIcon } from "@phosphor-icons/react";
 
 export default function AuthCallback() {
   const navigate = useNavigate();
@@ -87,20 +88,10 @@ export default function AuthCallback() {
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-500 via-violet-500 to-purple-500 p-4">
         <div className="bg-white p-8 rounded-2xl shadow-cartoon max-w-md w-full text-center">
           <div className="bg-red-100 p-3 rounded-full inline-flex mb-4">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
+            <ExclamationMarkIcon
               className="h-6 w-6 text-red-500"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-              />
-            </svg>
+              weight="bold"
+            />
           </div>
           <h2 className="text-xl font-medium text-gray-700">
             Authentication Error

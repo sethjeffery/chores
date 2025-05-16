@@ -4,6 +4,7 @@ import { CHORE_ICONS } from "../constants/icons";
 import ModalDialog from "../../../shared/components/ModalDialog";
 import ChoreFormFields from "./ChoreFormFields";
 import type { ChoreFormData } from "./ChoreFormFields";
+import { PlusIcon } from "@phosphor-icons/react";
 
 interface ChoreFormProps {
   onAdd: (
@@ -58,20 +59,7 @@ export default function ChoreForm({ onAdd }: ChoreFormProps) {
         onClick={() => setIsFormOpen(true)}
         className="w-full bg-gradient-to-r from-indigo-600 to-violet-600 text-white py-4 px-6 rounded-2xl hover:from-indigo-700 hover:to-violet-700 transition-all shadow-cartoon text-lg font-semibold flex items-center justify-center gap-2"
       >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width="20"
-          height="20"
-          viewBox="0 0 20 20"
-          fill="currentColor"
-          style={{ width: "20px", height: "20px" }}
-        >
-          <path
-            fillRule="evenodd"
-            d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z"
-            clipRule="evenodd"
-          />
-        </svg>
+        <PlusIcon className="h-5 w-5" weight="bold" />
         New Chore
       </button>
 

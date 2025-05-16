@@ -1,3 +1,4 @@
+import { XIcon } from "@phosphor-icons/react";
 import { forwardRef, useRef, useEffect } from "react";
 import type { ReactNode } from "react";
 
@@ -65,7 +66,7 @@ const ModalDialog = forwardRef<HTMLDivElement, ModalDialogProps>(
                 className="text-gray-500 hover:text-gray-700 text-xl"
                 aria-label="Close"
               >
-                &times;
+                <XIcon className="h-5 w-5" weight="bold" />
               </button>
             </div>
             {children}

@@ -5,7 +5,7 @@ import * as invitationService from "../services/invitationService";
 import useSWR from "swr";
 import QRCode from "react-qr-code";
 import { useState } from "react";
-
+import { CheckIcon } from "@phosphor-icons/react";
 // Defining the extended AccountUser interface based on the original from accountService
 interface ExtendedAccountUser
   extends Omit<accountService.AccountUser, "accountId"> {
@@ -381,18 +381,7 @@ export default function AccountUsersManager() {
                     >
                       {copySuccess ? (
                         <>
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            className="h-5 w-5 mr-1"
-                            viewBox="0 0 20 20"
-                            fill="currentColor"
-                          >
-                            <path
-                              fillRule="evenodd"
-                              d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                              clipRule="evenodd"
-                            />
-                          </svg>
+                          <CheckIcon className="h-4 w-4 mr-1" weight="bold" />
                           Copied!
                         </>
                       ) : (

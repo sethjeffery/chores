@@ -1,6 +1,13 @@
 import { useState, useRef, useEffect } from "react";
 import { useAuth } from "../../auth/hooks/useAuth";
 import { useAccount } from "../../account/hooks/useAccount";
+import {
+  BabyIcon,
+  CaretDownIcon,
+  SignOutIcon,
+  UserIcon,
+  UsersThreeIcon,
+} from "@phosphor-icons/react";
 
 interface UserMenuProps {
   onOpenFamilySettings: () => void;
@@ -50,8 +57,6 @@ export default function UserMenu({
   return (
     <div className="relative z-40" ref={dropdownRef}>
       <div className="flex items-center">
-        {/* Account name display removed as per request */}
-
         <button
           onClick={() => setIsOpen(!isOpen)}
           className="flex items-center text-white focus:outline-none"
@@ -69,44 +74,23 @@ export default function UserMenu({
               </div>
             )}
             <span className="hidden md:inline font-medium">{displayName}</span>
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className={`h-4 w-4 ml-1 transition-transform ${
+            <CaretDownIcon
+              className={`h-3 w-3 ml-1 transition-transform ${
                 isOpen ? "rotate-180" : ""
               }`}
-              viewBox="0 0 20 20"
-              fill="currentColor"
-            >
-              <path
-                fillRule="evenodd"
-                d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
-                clipRule="evenodd"
-              />
-            </svg>
+              weight="bold"
+            />
           </div>
         </button>
       </div>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg overflow-hidden z-50">
-          <div className="p-3 border-b border-gray-100">
+        <div className="absolute right-0 mt-2 w-72 bg-white rounded-lg shadow-lg overflow-hidden z-50">
+          <div className="p-3 border-b bg-gray-100 cursor-default">
             <p className="text-sm font-medium text-gray-900">{displayName}</p>
             <p className="text-xs text-gray-500 truncate">{user?.email}</p>
           </div>
           <div className="py-1">
-            <button
-              onClick={() => {
-                onOpenFamilySettings();
-                setIsOpen(false);
-              }}
-              className="w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 text-left flex items-center"
-            >
-              <span className="mr-2" role="img" aria-label="Family">
-                👨‍👩‍👧‍👦
-              </span>
-              Family Settings
-            </button>
-
             {isAdmin && onOpenAccountSettings && (
               <button
                 onClick={() => {
@@ -115,12 +99,37 @@ export default function UserMenu({
                 }}
                 className="w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 text-left flex items-center"
               >
-                <span className="mr-2" role="img" aria-label="Account">
-                  👥
-                </span>
-                Account Members
+                <UserIcon
+                  className="h-6 w-6 mr-3 text-cyan-800"
+                  weight="duotone"
+                />
+                <div className="flex flex-col">
+                  <div className="text-md">Account Settings</div>
+                  <div className="text-xs text-gray-400">
+                    Manage your account and login details
+                  </div>
+                </div>
               </button>
             )}
+
+            <button
+              onClick={() => {
+                onOpenFamilySettings();
+                setIsOpen(false);
+              }}
+              className="w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 text-left flex items-center"
+            >
+              <UsersThreeIcon
+                className="h-6 w-6 mr-3 text-orange-700"
+                weight="duotone"
+              />
+              <div className="flex flex-col">
+                <div className="text-md">Family Settings</div>
+                <div className="text-xs text-gray-400">
+                  Add your family members
+                </div>
+              </div>
+            </button>
 
             {isAdmin && onOpenShareSettings && (
               <button
@@ -130,13 +139,20 @@ export default function UserMenu({
                 }}
                 className="w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 text-left flex items-center"
               >
-                <span className="mr-2" role="img" aria-label="Child Mode">
-                  🧒
-                </span>
-                Child-friendly Mode
+                <BabyIcon
+                  className="h-6 w-6 mr-3 text-indigo-700"
+                  weight="duotone"
+                />
+                <div className="flex flex-col">
+                  <div className="text-md">Child-friendly Mode</div>
+                  <div className="text-xs text-gray-400">
+                    Share tasks with your family
+                  </div>
+                </div>
               </button>
             )}
 
+            <hr className="my-1" />
             <button
               onClick={() => {
                 signOut();
@@ -144,10 +160,10 @@ export default function UserMenu({
               }}
               className="w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 text-left flex items-center"
             >
-              <span className="mr-2" role="img" aria-label="Sign out">
-                🚪
-              </span>
-              Sign out
+              <SignOutIcon className="h-6 w-6 mr-3" />
+              <div className="flex flex-col">
+                <div className="text-md">Sign out</div>
+              </div>
             </button>
           </div>
         </div>

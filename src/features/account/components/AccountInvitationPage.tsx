@@ -5,6 +5,7 @@ import { useSWRConfig } from "swr";
 import * as invitationService from "../services/invitationService";
 import * as accountService from "../services/accountService";
 import { supabase } from "../../../supabase";
+import { CheckIcon, ExclamationMarkIcon } from "@phosphor-icons/react";
 
 export default function AccountInvitationPage() {
   const { token } = useParams<{ token: string }>();
@@ -206,20 +207,10 @@ export default function AccountInvitationPage() {
         {invitationStatus === "invalid" && (
           <div className="text-center">
             <div className="bg-red-100 p-3 rounded-full inline-flex mb-4">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
+              <ExclamationMarkIcon
                 className="h-6 w-6 text-red-500"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
-              </svg>
+                weight="bold"
+              />
             </div>
             <h2 className="text-xl font-fancy text-gray-700 mb-4">
               Invalid Invitation
@@ -373,20 +364,7 @@ export default function AccountInvitationPage() {
         {invitationStatus === "success" && (
           <div className="text-center">
             <div className="bg-green-100 p-3 rounded-full inline-flex mb-4">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-6 w-6 text-green-500"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M5 13l4 4L19 7"
-                />
-              </svg>
+              <CheckIcon className="h-6 w-6 text-green-500" weight="bold" />
             </div>
             <h2 className="text-xl font-fancy text-gray-700 mb-4">
               Welcome to {accountName}!
@@ -401,20 +379,10 @@ export default function AccountInvitationPage() {
         {invitationStatus === "error" && (
           <div className="text-center">
             <div className="bg-red-100 p-3 rounded-full inline-flex mb-4">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
+              <ExclamationMarkIcon
                 className="h-6 w-6 text-red-500"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
-              </svg>
+                weight="bold"
+              />
             </div>
             <h2 className="text-xl font-fancy text-gray-700 mb-4">
               Something Went Wrong
