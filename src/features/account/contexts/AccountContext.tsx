@@ -7,7 +7,6 @@ export interface AccountContextType {
   activeAccount: Account | null;
   isLoading: boolean;
   error: string | null;
-  selectAccount: (account: Account) => Promise<void>;
   createAccount: (name: string) => Promise<Account>;
   isAdmin: boolean;
 }

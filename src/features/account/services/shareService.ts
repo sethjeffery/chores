@@ -1,8 +1,5 @@
 import { v4 as uuidv4 } from "uuid";
-import {
-  supabase,
-  setupTokenAuth as setupSupabaseTokenAuth,
-} from "../../../supabase";
+import { supabase } from "../../../supabase";
 
 // Table name
 export const SHARE_TOKENS_TABLE = "share_tokens";
@@ -101,23 +98,12 @@ export async function getOrCreateShareToken(
 }
 
 /**
- * Set up the Supabase client with a share token for authenticated requests
- */
-export function setupTokenAuth(token: string): void {
-  // Use the function from supabase.ts
-  setupSupabaseTokenAuth(token);
-}
-
-/**
  * Get account details using a share token
  */
 export async function getAccountByToken(
   token: string
 ): Promise<{ id: string; name: string } | null> {
   try {
-    // Set up auth with token
-    setupTokenAuth(token);
-
     // Get the token record first to find the account ID
     const { data: tokenData, error: tokenError } = await supabase
       .from(SHARE_TOKENS_TABLE)

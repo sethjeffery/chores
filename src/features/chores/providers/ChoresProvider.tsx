@@ -49,14 +49,7 @@ export function ChoresProvider({ children }: { children: ReactNode }) {
     isLoading,
   } = useSWR(
     accountId ? ["chores-data", accountId] : null,
-    async () => {
-      try {
-        return await choreService.getChores(accountId as string);
-      } catch (error) {
-        console.error("Failed to fetch chores:", error);
-        throw new Error("Failed to load chores. Please try again later.");
-      }
-    },
+    () => choreService.getChores(accountId as string),
     {
       revalidateOnFocus: false,
       dedupingInterval: 3000, // Reduce unnecessary refetches

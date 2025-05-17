@@ -39,7 +39,7 @@ export function useChoreCardDrag({
   // Return handlers and state
   return {
     dragHandlers: {
-      draggable: "true",
+      draggable: handleDragStart ? "true" : undefined,
       ref: elementRef,
       "data-chore-id": chore.id,
       onDragStart: useCallback(

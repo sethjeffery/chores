@@ -6,9 +6,12 @@ import { useAuth } from "../../auth/hooks/useAuth";
 import { supabase } from "../../../supabase";
 import type { Account } from "../services/accountService";
 import useSWR from "swr";
+import { useParams } from "react-router-dom";
+import * as shareService from "../services/shareService";
 
 // Provider component that wraps parts of the app that need account data
 export function AccountProvider({ children }: { children: ReactNode }) {
+  const { shareToken } = useParams<{ shareToken: string }>();
   const { user } = useAuth();
   const userId = user?.id;
 
@@ -18,9 +21,20 @@ export function AccountProvider({ children }: { children: ReactNode }) {
     error,
     isLoading,
   } = useSWR(
-    userId ? "user-account" : null,
+    userId || shareToken ? ["account", userId || shareToken] : null,
     async () => {
-      try {
+      if (shareToken) {
+        // Get account details from the token
+        const accountDetails = await shareService.getAccountByToken(shareToken);
+
+        if (!accountDetails) {
+          throw new Error("Invalid share token");
+        }
+
+        return { account: accountDetails, isAdmin: false };
+      }
+
+      if (userId) {
         // Get accounts the user belongs to
         const userAccounts = await accountService.getUserAccounts();
 
@@ -30,13 +44,10 @@ export function AccountProvider({ children }: { children: ReactNode }) {
           const isAdmin = await accountService.isUserAccountAdmin(account.id);
           return { account, isAdmin };
         }
-
-        // No longer auto-creating accounts - this is now handled by onboarding
-        return { account: null, isAdmin: false };
-      } catch (err) {
-        console.error("Failed to get account:", err);
-        throw err;
       }
+
+      // No longer auto-creating accounts - this is now handled by onboarding
+      return { account: null, isAdmin: false };
     },
     {
       revalidateOnFocus: false,
@@ -50,10 +61,10 @@ export function AccountProvider({ children }: { children: ReactNode }) {
 
   // Set up real-time subscription to account changes
   useSWR(
-    userId && activeAccount ? "account-subscription" : null,
+    (userId || shareToken) && activeAccount ? "account-subscription" : null,
     () => {
       // Subscribe to account user changes for this specific account
-      const channelKey = `account-changes-${userId}`;
+      const channelKey = `account-changes-${activeAccount?.id}`;
 
       // Since we checked activeAccount is not null in the useSWR key, we can safely use it here
       const accountId = activeAccount!.id;
@@ -88,8 +99,6 @@ export function AccountProvider({ children }: { children: ReactNode }) {
     }
   );
 
-  // For backwards compatibility, we'll keep the same context shape
-  // but simplify the implementation since we only have one account
   const value = useMemo(
     () => ({
       // For backwards compatibility, return an array with the single account
@@ -97,13 +106,6 @@ export function AccountProvider({ children }: { children: ReactNode }) {
       activeAccount,
       isLoading,
       error: error ? error?.message ?? String(error) : null,
-      // These functions are simplified since we don't support multiple accounts
-      selectAccount: async () => {
-        console.warn(
-          "Account switching is disabled - only one account per user is supported"
-        );
-        return Promise.resolve();
-      },
       createAccount: async (name: string) => {
         if (activeAccount) {
           console.warn(

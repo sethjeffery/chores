@@ -21,7 +21,9 @@ export const supabase = createClient(supabaseUrl, supabaseKey, {
   },
   global: {
     // Add support for custom headers (for shared tokens)
-    headers: {},
+    headers: {
+      "X-Share-Token": location.href.match(/\/shared\/(\w+)/)?.[1] ?? "",
+    },
   },
 });
 
@@ -44,20 +46,6 @@ export function enableRealtimeForChores() {
       }
     )
     .subscribe();
-}
-
-// Configure Supabase client to use a token for public read-only access
-export function setupTokenAuth(token: string): void {
-  // Set auth token for realtime subscription
-  supabase.realtime.setAuth(token);
-
-  // Set authorization header for requests
-  // Note: In Supabase, RLS policies check the 'request.headers' object for 'share-token'
-  // This is automatically extracted from Authorization header by the Postgres JWT verification
-  supabase.auth.setSession({
-    access_token: token,
-    refresh_token: "",
-  });
 }
 
 // Log configuration for debugging

@@ -135,6 +135,17 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
+-- Create helper function to check if user is admin of an account
+CREATE OR REPLACE FUNCTION is_account_share_token(account_id UUID) RETURNS BOOLEAN AS $$
+BEGIN
+  RETURN EXISTS (
+    SELECT 1 FROM share_tokens
+    WHERE share_tokens.account_id = is_account_share_token.account_id
+    AND share_tokens.token = get_share_token()
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
 -- Helper function to get the current token from the JWT
 CREATE OR REPLACE FUNCTION current_token() RETURNS TEXT AS $$
 DECLARE
@@ -153,33 +164,18 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Create helper function to check if a share token is valid for an account
-CREATE OR REPLACE FUNCTION is_valid_share_token(account_id UUID, token_header TEXT) RETURNS BOOLEAN AS $$
-DECLARE
-  token_value TEXT;
-  token_record RECORD;
+CREATE OR REPLACE FUNCTION get_share_token() RETURNS TEXT AS $$
 BEGIN
-  -- Extract the token from the header (Bearer format)
-  token_value := REPLACE(token_header, 'Bearer ', '');
-  
-  -- Check if token exists and is valid for this account
-  SELECT * INTO token_record FROM share_tokens 
-  WHERE share_tokens.token = token_value
-  AND share_tokens.account_id = is_valid_share_token.account_id;
-  
-  -- Update last_used_at if token is found
-  IF FOUND THEN
-    UPDATE share_tokens SET last_used_at = NOW() WHERE token = token_value;
-    RETURN TRUE;
-  ELSE
-    RETURN FALSE;
-  END IF;
+  RETURN current_setting('request.headers', true)::json->>'x-share-token';
+EXCEPTION
+  WHEN OTHERS THEN
+    RETURN NULL;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Create policies for accounts
 CREATE POLICY "Users can view accounts they belong to" ON accounts 
-  FOR SELECT USING (is_account_member(id));
+  FOR SELECT USING (is_account_member(id) OR is_account_share_token(id));
   
 CREATE POLICY "Users can insert accounts" ON accounts 
   FOR INSERT WITH CHECK (true);
@@ -220,16 +216,7 @@ CREATE POLICY "Admins can delete other account associations" ON account_users
 -- Create policies for family_members
 CREATE POLICY "Users can view family members in their accounts" ON family_members 
   FOR SELECT USING (
-    is_account_member(account_id) OR
-    (
-      (current_setting('request.headers.share-token', true) IS NOT NULL AND
-       is_valid_share_token(account_id, current_setting('request.headers.share-token', true)))
-      OR
-      -- Also check if the current session token is a valid share token
-      (current_setting('request.jwt.claims', true)::json ->> 'sub' IS NULL AND
-       current_setting('request.jwt.claims', true)::json ->> 'role' = 'anon' AND
-       is_valid_share_token(account_id, current_token()))
-    )
+    is_account_member(account_id) OR is_account_share_token(account_id)
   );
   
 CREATE POLICY "Users can insert family members to their accounts" ON family_members 
@@ -244,16 +231,7 @@ CREATE POLICY "Users can delete family members in their accounts" ON family_memb
 -- Create policies for chores
 CREATE POLICY "Users can view chores in their accounts" ON chores 
   FOR SELECT USING (
-    is_account_member(account_id) OR
-    (
-      (current_setting('request.headers.share-token', true) IS NOT NULL AND
-       is_valid_share_token(account_id, current_setting('request.headers.share-token', true)))
-      OR
-      -- Also check if the current session token is a valid share token
-      (current_setting('request.jwt.claims', true)::json ->> 'sub' IS NULL AND
-       current_setting('request.jwt.claims', true)::json ->> 'role' = 'anon' AND
-       is_valid_share_token(account_id, current_token()))
-    )
+    is_account_member(account_id) OR is_account_share_token(account_id)
   );
   
 CREATE POLICY "Users can insert chores to their accounts" ON chores 
@@ -308,6 +286,11 @@ CREATE POLICY "Admins can delete their share tokens" ON share_tokens
   FOR DELETE USING (
     created_by = auth.uid() AND
     is_account_admin(account_id)
+  );
+
+CREATE POLICY "Users can view share tokens via share token" ON share_tokens
+  FOR SELECT USING (
+    token = get_share_token()
   );
 
 -- Instructions:

@@ -6,17 +6,17 @@ interface MemberSectionProps {
   member: FamilyMember;
   columnId: ColumnType;
   choresByAssignee: Record<string, Chore[]>;
-  onDelete: (id: string) => void;
+  onDelete?: (id: string) => void;
   dragOverMember: string | null;
-  handleAssigneeDrop: (
+  handleAssigneeDrop?: (
     e: React.DragEvent<HTMLDivElement>,
     memberId: string
   ) => void;
-  handleAssigneeDragOver: (
+  handleAssigneeDragOver?: (
     e: React.DragEvent<HTMLDivElement>,
     memberId: string
   ) => void;
-  handleAssigneeDragLeave: (e: React.DragEvent<HTMLDivElement>) => void;
+  handleAssigneeDragLeave?: (e: React.DragEvent<HTMLDivElement>) => void;
   rewardTotals: Record<string, number>;
   formatReward: (amount: number) => string;
   setDragOverMember: (memberId: string) => void;
@@ -95,8 +95,10 @@ export default function MemberSection({
           ? "bg-indigo-50 shadow-[inset_0_0_0_2px_rgba(99,102,241,0.2)]"
           : ""
       } transition-all duration-200`}
-      onDrop={(e) => handleAssigneeDrop(e, member.id)}
-      onDragOver={(e) => handleAssigneeDragOver(e, member.id)}
+      onDrop={handleAssigneeDrop && ((e) => handleAssigneeDrop(e, member.id))}
+      onDragOver={
+        handleAssigneeDragOver && ((e) => handleAssigneeDragOver(e, member.id))
+      }
       onDragEnter={handleDragEnter}
       onDragLeave={handleAssigneeDragLeave}
       data-drop-action="member"

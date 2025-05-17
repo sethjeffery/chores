@@ -9,7 +9,7 @@ import LoginPage from "./features/auth/components/LoginPage";
 import AuthCallback from "./features/auth/components/AuthCallback";
 import ProtectedRoute from "./features/auth/components/ProtectedRoute";
 import AccountInvitationPage from "./features/account/components/AccountInvitationPage";
-import SharedChoresList from "./features/chores/components/SharedChoresList";
+import ChildFriendlyContent from "./features/layout/components/ChildFriendlyContent";
 
 function App() {
   return (
@@ -27,7 +27,18 @@ function App() {
       />
 
       {/* Public shared view route - no login required */}
-      <Route path="/shared/:token" element={<SharedChoresList />} />
+      <Route
+        path="/shared/:shareToken"
+        element={
+          <AccountProvider>
+            <FamilyProvider>
+              <ChoresProvider>
+                <ChildFriendlyContent />
+              </ChoresProvider>
+            </FamilyProvider>
+          </AccountProvider>
+        }
+      />
 
       {/* Protected routes */}
       <Route element={<ProtectedRoute />}>

@@ -5,14 +5,15 @@ import { COLUMNS } from "../constants/columns";
 import { useFamilyContext } from "../../family/hooks/useFamilyContext";
 import DragContext from "../contexts/DragContext";
 import MemberSection from "./MemberSection";
-
+import clsx from "clsx";
 interface ColumnSectionProps {
   title: string;
   columnId: ColumnType;
   chores: Chore[];
-  onDelete: (id: string) => void;
-  onDrop: (choreId: string, column: ColumnType) => void;
-  onReassign: (
+  draggable?: boolean;
+  onDelete?: (id: string) => void;
+  onDrop?: (choreId: string, column: ColumnType) => void;
+  onReassign?: (
     choreId: string,
     newAssigneeId: string,
     targetColumn?: ColumnType
@@ -23,6 +24,7 @@ export default function ColumnSection({
   title,
   columnId,
   chores,
+  draggable = true,
   onDelete,
   onDrop,
   onReassign,
@@ -43,10 +45,10 @@ export default function ColumnSection({
         // If the chore is coming from a different column,
         // explicitly pass the target column when reassigning
         if (chore.column !== columnId) {
-          onReassign(choreId, memberId, columnId);
+          onReassign?.(choreId, memberId, columnId);
         } else {
           // For chores already in this column, just reassign
-          onReassign(choreId, memberId);
+          onReassign?.(choreId, memberId);
         }
       }
     },
@@ -74,7 +76,7 @@ export default function ColumnSection({
             // Don't call onDrop, just clean up visual state
           } else {
             // Process the drop for all other cases
-            onDrop(chore.id, columnId);
+            onDrop?.(chore.id, columnId);
           }
         }
       } catch (err) {
@@ -244,6 +246,11 @@ export default function ColumnSection({
     setDraggedChoreId(null);
   }, []);
 
+  const handleDragEnter = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsColumnOver(true);
+  }, []);
+
   // Get column style
   const columnStyle = useMemo(() => {
     switch (columnId) {
@@ -370,21 +377,18 @@ export default function ColumnSection({
 
   return (
     <div
-      className={`column-item rounded-xl bg-white p-0 border-t-4 ${columnStyle} shadow-xl h-full flex flex-col relative 
-        ${
-          isColumnOver
-            ? "bg-blue-50 shadow-[inset_0_0_0_2px_rgba(59,130,246,0.3)]"
-            : ""
-        } 
-        hover:shadow-2xl transition-all duration-200
-        [&.drag-over-invalid]:bg-red-50 [&.drag-over-invalid]:shadow-[inset_0_0_0_2px_rgba(239,68,68,0.3)]`}
-      onDrop={handleColumnDrop}
-      onDragOver={handleColumnDragOver}
-      onDragEnter={(e) => {
-        e.preventDefault();
-        setIsColumnOver(true);
-      }}
-      onDragLeave={handleColumnDragLeave}
+      className={clsx(
+        "column-item rounded-xl bg-white p-0 border-t-4 shadow-xl h-full flex flex-col relative",
+        columnStyle,
+        isColumnOver &&
+          "bg-blue-50 shadow-[inset_0_0_0_2px_rgba(59,130,246,0.3)]",
+        draggable &&
+          "hover:shadow-2xl transition-all duration-200 [&.drag-over-invalid]:bg-red-50 [&.drag-over-invalid]:shadow-[inset_0_0_0_2px_rgba(239,68,68,0.3)]"
+      )}
+      onDrop={draggable ? handleColumnDrop : undefined}
+      onDragOver={draggable ? handleColumnDragOver : undefined}
+      onDragEnter={draggable ? handleDragEnter : undefined}
+      onDragLeave={draggable ? handleColumnDragLeave : undefined}
       data-column={columnId}
       data-drop-action="column"
       data-drop-target={columnId}
@@ -417,8 +421,8 @@ export default function ColumnSection({
                   key={chore.id}
                   chore={chore}
                   onDelete={onDelete}
-                  onDragStart={handleChoreStartDrag}
-                  onDragEnd={handleChoreEndDrag}
+                  onDragStart={draggable ? handleChoreStartDrag : undefined}
+                  onDragEnd={draggable ? handleChoreEndDrag : undefined}
                   onAssign={(choreId) => {
                     // Show dialog for assigning to family members
                     const assigneeElement =
@@ -449,9 +453,13 @@ export default function ColumnSection({
               choresByAssignee={choresByAssignee}
               onDelete={onDelete}
               dragOverMember={dragOverMember}
-              handleAssigneeDrop={handleAssigneeDrop}
-              handleAssigneeDragOver={handleAssigneeDragOver}
-              handleAssigneeDragLeave={handleAssigneeDragLeave}
+              handleAssigneeDrop={draggable ? handleAssigneeDrop : undefined}
+              handleAssigneeDragOver={
+                draggable ? handleAssigneeDragOver : undefined
+              }
+              handleAssigneeDragLeave={
+                draggable ? handleAssigneeDragLeave : undefined
+              }
               rewardTotals={rewardTotals}
               formatReward={formatReward}
               setDragOverMember={setDragOverMember}

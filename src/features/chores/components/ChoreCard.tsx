@@ -3,10 +3,11 @@ import RewardBadge from "../../../shared/components/RewardBadge";
 import { useChoreCardDrag } from "../hooks/useChoreCardDrag";
 import { useTouchDevice } from "../hooks/useTouchDevice";
 import { useEffect, useState, useMemo } from "react";
+import clsx from "clsx";
 
 interface ChoreCardProps {
   chore: Chore;
-  onDelete: (id: string) => void;
+  onDelete?: (id: string) => void;
   onDragStart?: (choreId: string) => void;
   onDragEnd?: () => void;
   onAssign?: (choreId: string) => void;
@@ -96,9 +97,12 @@ export default function ChoreCard({
   return (
     <div
       {...dragHandlers}
-      className={`p-4 rounded-xl shadow-md mb-2 border-l-4 transition-colors bg-white ${getCardStyle()} 
-        hover:shadow-lg cursor-grab active:cursor-grabbing
-      `}
+      className={clsx(
+        "p-4 rounded-xl shadow-md mb-2 border-l-4 transition-colors bg-white",
+        getCardStyle(),
+        dragHandlers.draggable &&
+          "hover:shadow-lg cursor-grab active:cursor-grabbing"
+      )}
       style={borderStyle}
     >
       <div className="flex justify-between items-start">
@@ -106,13 +110,15 @@ export default function ChoreCard({
           {chore.icon && <span className="text-xl">{chore.icon}</span>}
           {chore.title}
         </h3>
-        <button
-          onClick={() => onDelete(chore.id)}
-          className="text-red-500 hover:text-red-700 hover:bg-red-100 text-lg leading-none rounded-full w-6 h-6 flex items-center justify-center transition-colors"
-          aria-label="Delete chore"
-        >
-          &times;
-        </button>
+        {onDelete && (
+          <button
+            onClick={() => onDelete?.(chore.id)}
+            className="text-red-500 hover:text-red-700 hover:bg-red-100 text-lg leading-none rounded-full w-6 h-6 flex items-center justify-center transition-colors"
+            aria-label="Delete chore"
+          >
+            &times;
+          </button>
+        )}
       </div>
 
       {/* Display reward if it exists */}
@@ -126,7 +132,7 @@ export default function ChoreCard({
       {(isTouchDevice || forceShowButtons) &&
         (chore.column === "IDEAS" || chore.column === "TODO") && (
           <div className="mt-3 flex gap-2 touch-button-container">
-            {chore.column === "IDEAS" && (
+            {chore.column === "IDEAS" && onAssign && (
               <button
                 onClick={() => onAssign?.(chore.id)}
                 className="text-sm px-3 py-1 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors touch-button"
@@ -135,7 +141,7 @@ export default function ChoreCard({
               </button>
             )}
 
-            {chore.column === "TODO" && (
+            {chore.column === "TODO" && onComplete && (
               <>
                 <button
                   onClick={() => onComplete?.(chore.id)}
