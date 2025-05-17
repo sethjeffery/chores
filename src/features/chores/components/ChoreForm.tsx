@@ -31,14 +31,14 @@ export default function ChoreForm({ onAdd }: ChoreFormProps) {
     if (formData.title.trim()) {
       // Convert reward string to number if present, otherwise pass undefined
       const rewardValue =
-        typeof formData.reward === "string" && formData.reward.trim()
-          ? parseFloat(formData.reward)
-          : undefined;
+        typeof formData.reward === "string"
+          ? parseFloat(formData.reward.trim() || "0")
+          : formData.reward;
 
       onAdd(
         formData.title.trim(),
         formData.assigneeId || undefined,
-        rewardValue,
+        rewardValue || undefined,
         formData.icon
       );
 

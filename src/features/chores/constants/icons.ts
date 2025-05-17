@@ -19,8 +19,8 @@ export const CHORE_ICONS = [
   "🧫", // petri dish
   "🧪", // test tube
   "🦠", // microbe
-  "🧹", // broom (duplicate for 19)
-  "🧴", // lotion (duplicate for 20)
+  "💥", // boom
+  "🫧", // bubbles
 
   // Household items
   "🛒", // shopping cart
@@ -42,7 +42,7 @@ export const CHORE_ICONS = [
   "🔑", // key
   "🔐", // locked with key
   "🔒", // locked
-  "🔓", // unlocked (added for 20)
+  "🔓", // unlocked
 
   // Food & Kitchen
   "🍽️", // plate with utensils
@@ -64,7 +64,7 @@ export const CHORE_ICONS = [
   "🥫", // canned food
   "🍖", // meat on bone
   "🥗", // green salad
-  "🍳", // cooking (added for 20)
+  "🍳", // cooking
 
   // Clothes & Laundry
   "👕", // t-shirt
@@ -84,9 +84,9 @@ export const CHORE_ICONS = [
   "👠", // high-heeled shoe
   "🎽", // running shirt
   "🩲", // briefs
-  "🧵", // thread (duplicate for 18)
-  "👚", // woman's clothes (duplicate for 19)
-  "👕", // t-shirt (duplicate for 20)
+  "🥼", // white shirt
+  "🫧", // bubbles
+  "💦", // sweat droplets
 
   // Electronics & Office
   "💻", // laptop
@@ -107,8 +107,8 @@ export const CHORE_ICONS = [
   "💾", // floppy disk
   "💽", // computer disk
   "📀", // dvd
-  "🖥️", // desktop computer (added for 19)
-  "⌨️", // keyboard (added for 20)
+  "🖥️", // desktop computer
+  "⌨️", // keyboard
 
   // Education & Activities
   "📚", // books
@@ -129,8 +129,8 @@ export const CHORE_ICONS = [
   "🧩", // puzzle piece
   "🎭", // performing arts
   "🎪", // circus tent
-  "📕", // red book (added for 19)
-  "🖊️", // pen (added for 20)
+  "📕", // red book
+  "🖊️", // pen
 
   // Nature & Outdoors
   "🌱", // seedling
@@ -149,10 +149,10 @@ export const CHORE_ICONS = [
   "🏕️", // camping
   "🏞️", // national park
   "🦮", // guide dog
-  "🌲", // evergreen tree (added for 17)
-  "🌼", // blossom (added for 18)
-  "🌸", // cherry blossom (added for 19)
-  "🌵", // cactus (added for 20)
+  "🌲", // evergreen tree
+  "🌼", // blossom
+  "🌸", // cherry blossom
+  "🌵", // cactus
 
   // Animals
   "🐶", // dog
@@ -173,8 +173,8 @@ export const CHORE_ICONS = [
   "🐒", // monkey
   "🦇", // bat
   "🦉", // owl
-  "🦆", // duck (added for 19)
-  "🐢", // turtle (added for 20)
+  "🦆", // duck
+  "🐢", // turtle
 
   // Child & Toys
   "🧸", // teddy bear
@@ -192,11 +192,11 @@ export const CHORE_ICONS = [
   "🧙", // mage
   "🧚", // fairy
   "🧞", // genie
-  "🎯", // direct hit (added for 16)
-  "🎪", // circus tent (duplicate for 17)
-  "🪄", // magic wand (added for 18)
-  "🎮", // video game controller (duplicate for 19)
-  "🎲", // game die (duplicate for 20)
+  "🎯", // direct hit
+  "🎪", // circus tent
+  "🪄", // magic wand
+  "🎮", // video game controller
+  "🎲", // game die
 
   // Sports & Leisure
   "⚽", // soccer ball
@@ -216,9 +216,9 @@ export const CHORE_ICONS = [
   "🏄", // person surfing
   "🎣", // fishing pole
   "🎯", // direct hit
-  "⛷️", // skier (added for 18)
-  "🏊", // person swimming (added for 19)
-  "🏋️", // person lifting weights (added for 20)
+  "⛷️", // skier
+  "🏊", // person swimming
+  "🏋️", // person lifting weights
 
   // Music
   "🎵", // musical note
@@ -234,13 +234,13 @@ export const CHORE_ICONS = [
   "🎺", // trumpet
   "🎻", // violin
   "📯", // postal horn
-  "🪗", // accordion (added for 14)
-  "🥁", // drum (added for 15)
-  "🪕", // banjo (added for 16)
-  "🎼", // musical score (added for 17)
-  "🎬", // clapper board (added for 18)
-  "🔔", // bell (added for 19)
-  "📻", // radio (duplicate for 20)
+  "🪗", // accordion
+  "🥁", // drum
+  "🪕", // banjo
+  "🎼", // musical score
+  "🎬", // clapper board
+  "🔔", // bell
+  "📻", // radio
 
   // Misc
   "💰", // money bag
@@ -260,9 +260,9 @@ export const CHORE_ICONS = [
   "🦾", // mechanical arm
   "🦿", // mechanical leg
   "🛌", // person in bed
-  "📆", // tear-off calendar (added for 18)
-  "📈", // chart increasing (added for 19)
-  "💼", // briefcase (added for 20)
+  "📆", // tear-off calendar
+  "📈", // chart increasing
+  "💼", // briefcase
 ];
 
 // Chore icon categories for the emoji picker

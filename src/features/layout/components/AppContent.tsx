@@ -120,11 +120,7 @@ export default function AppContent() {
           )}
 
           <div className="mb-8 max-w-md mx-auto">
-            <ChoreForm
-              onAdd={(title, assigneeId, reward, icon) =>
-                addChore(title, assigneeId, reward, icon)
-              }
-            />
+            <ChoreForm onAdd={addChore} />
           </div>
 
           {/* Column container with enhanced card styles */}
