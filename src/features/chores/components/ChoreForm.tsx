@@ -5,14 +5,11 @@ import ModalDialog from "../../../shared/components/ModalDialog";
 import ChoreFormFields from "./ChoreFormFields";
 import type { ChoreFormData } from "./ChoreFormFields";
 import { PlusIcon } from "@phosphor-icons/react";
+import type { Chore } from "../../../types";
+import type { InsertChore } from "../services/choreService";
 
 interface ChoreFormProps {
-  onAdd: (
-    title: string,
-    assigneeId?: string, // UUID reference to family_members.id
-    reward?: number,
-    icon?: string
-  ) => void;
+  onAdd: (chore: InsertChore) => Promise<Chore | null>;
 }
 
 export default function ChoreForm({ onAdd }: ChoreFormProps) {
@@ -35,12 +32,14 @@ export default function ChoreForm({ onAdd }: ChoreFormProps) {
           ? parseFloat(formData.reward.trim() || "0")
           : formData.reward;
 
-      onAdd(
-        formData.title.trim(),
-        formData.assigneeId || undefined,
-        rewardValue || undefined,
-        formData.icon
-      );
+      onAdd({
+        title: formData.title.trim(),
+        reward: rewardValue || null,
+        icon: formData.icon,
+        status: {
+          assignee: formData.assigneeId || null,
+        },
+      });
 
       // Reset form and close modal
       setFormData({

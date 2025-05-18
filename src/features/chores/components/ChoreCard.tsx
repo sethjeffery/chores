@@ -69,8 +69,8 @@ export default function ChoreCard({
   // Get card styling based on column
   const getCardStyle = () => {
     // For IDEAS column or when no member color is provided
-    if (chore.column === "IDEAS" || !memberColor) {
-      switch (chore.column) {
+    if (chore.status?.status === "IDEAS" || !memberColor) {
+      switch (chore.status?.status) {
         case "IDEAS":
           return "border-blue-400 hover:border-blue-500";
         case "TODO":
@@ -88,11 +88,11 @@ export default function ChoreCard({
 
   // Create style object for the border if we have a member color
   const borderStyle = useMemo(() => {
-    if (memberColor && chore.column !== "IDEAS") {
+    if (memberColor && chore.status?.status !== "IDEAS") {
       return { borderLeftColor: memberColor };
     }
     return {};
-  }, [memberColor, chore.column]);
+  }, [memberColor, chore.status?.status]);
 
   return (
     <div
@@ -123,16 +123,17 @@ export default function ChoreCard({
 
       {/* Display reward if it exists */}
       {chore.reward && (
-        <div className="mt-2 text-xs">
+        <div className="mt-2 text-sm">
           <RewardBadge reward={chore.reward} />
         </div>
       )}
 
       {/* Touch device action buttons */}
       {(isTouchDevice || forceShowButtons) &&
-        (chore.column === "IDEAS" || chore.column === "TODO") && (
+        (chore.status?.status === "IDEAS" ||
+          chore.status?.status === "TODO") && (
           <div className="mt-3 flex gap-2 touch-button-container">
-            {chore.column === "IDEAS" && onAssign && (
+            {chore.status?.status === "IDEAS" && onAssign && (
               <button
                 onClick={() => onAssign?.(chore.id)}
                 className="text-sm px-3 py-1 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors touch-button"
@@ -141,7 +142,7 @@ export default function ChoreCard({
               </button>
             )}
 
-            {chore.column === "TODO" && onComplete && (
+            {chore.status?.status === "TODO" && onComplete && (
               <>
                 <button
                   onClick={() => onComplete?.(chore.id)}

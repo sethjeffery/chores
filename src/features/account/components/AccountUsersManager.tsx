@@ -38,30 +38,32 @@ export default function AccountUsersManager() {
         );
 
         // Transform account users to include display information
-        return accountUsers.map((user) => {
-          // Check if this user is the current logged-in user
-          const isCurrentUser = user.userId === currentUser.id;
+        return accountUsers
+          .filter((user) => !user.isGuest)
+          .map((user) => {
+            // Check if this user is the current logged-in user
+            const isCurrentUser = user.userId === currentUser.id;
 
-          // For the current user, we can use their profile directly if it's more complete
-          if (isCurrentUser) {
+            // For the current user, we can use their profile directly if it's more complete
+            if (isCurrentUser) {
+              return {
+                ...user,
+                email: user.email || currentUser.email || "No Email",
+                name:
+                  user.name ||
+                  currentUser.user_metadata?.full_name ||
+                  currentUser.user_metadata?.name ||
+                  "Current User",
+                isCurrentUser: true,
+              };
+            }
+
+            // For other users, use the information from account_users
             return {
               ...user,
-              email: user.email || currentUser.email || "No Email",
-              name:
-                user.name ||
-                currentUser.user_metadata?.full_name ||
-                currentUser.user_metadata?.name ||
-                "Current User",
-              isCurrentUser: true,
+              isCurrentUser: false,
             };
-          }
-
-          // For other users, use the information from account_users
-          return {
-            ...user,
-            isCurrentUser: false,
-          };
-        });
+          });
       } catch (err) {
         console.error("Failed to load account users:", err);
         throw err; // Let SWR handle the error

@@ -2,23 +2,10 @@ import { v4 as uuidv4 } from "uuid";
 import { supabase } from "../../../supabase";
 import type { FamilyMember } from "../../../types";
 import { DEFAULT_FAMILY_MEMBERS } from "../constants/defaultMembers";
-
-// Table name
-export const FAMILY_MEMBERS_TABLE = "family_members";
-
-// Define the database record type
-export interface FamilyMemberRecord {
-  id: string;
-  name: string;
-  avatar?: string | null;
-  color?: string | null;
-  dob?: string | null;
-  created_at?: string;
-  account_id?: string | null;
-}
+import type { Database } from "../../../database.types";
 
 // Convert from DB to app format
-export function toFamilyMember(record: FamilyMemberRecord): FamilyMember {
+export function toFamilyMember(record: Database["public"]["Tables"]["family_members"]["Row"]): FamilyMember {
   return {
     id: record.id,
     name: record.name,
@@ -31,8 +18,8 @@ export function toFamilyMember(record: FamilyMemberRecord): FamilyMember {
 // Convert from app to DB format
 export function fromFamilyMember(
   member: Partial<FamilyMember>
-): Partial<FamilyMemberRecord> {
-  const result: Partial<FamilyMemberRecord> = {};
+): Database["public"]["Tables"]["family_members"]["Update"] {
+  const result: Database["public"]["Tables"]["family_members"]["Update"] = {};
 
   if (member.id !== undefined) result.id = member.id;
   if (member.name !== undefined) result.name = member.name;
@@ -59,7 +46,7 @@ export async function getFamilyMembers(
       `Fetching family members for account ${accountId} from Supabase...`
     );
     const { data, error } = await supabase
-      .from(FAMILY_MEMBERS_TABLE)
+      .from('family_members')
       .select("*")
       .eq("account_id", accountId)
       .order("dob", { ascending: true }); // Order by dob ascending (oldest first)
@@ -70,8 +57,7 @@ export async function getFamilyMembers(
     }
 
     console.log(
-      `Successfully fetched ${
-        data?.length ?? 0
+      `Successfully fetched ${data?.length ?? 0
       } family members for account ${accountId}`
     );
     return (data || []).map(toFamilyMember);
@@ -109,7 +95,7 @@ export async function addFamilyMember(
 
     const id = uuidv4();
 
-    const { error } = await supabase.from(FAMILY_MEMBERS_TABLE).insert({
+    const { error } = await supabase.from('family_members').insert({
       id,
       name: member.name,
       avatar: member.avatar || null,
@@ -142,7 +128,7 @@ export async function updateFamilyMember(
     const dbUpdates = fromFamilyMember(updates);
 
     const { error } = await supabase
-      .from(FAMILY_MEMBERS_TABLE)
+      .from('family_members')
       .update(dbUpdates)
       .eq("id", id);
 
@@ -162,7 +148,7 @@ export async function updateFamilyMember(
 export async function deleteFamilyMember(id: string): Promise<void> {
   try {
     const { error } = await supabase
-      .from(FAMILY_MEMBERS_TABLE)
+      .from('family_members')
       .delete()
       .eq("id", id);
 
@@ -172,46 +158,6 @@ export async function deleteFamilyMember(id: string): Promise<void> {
     }
   } catch (error) {
     console.error(`Error deleting family member ${id}:`, error);
-    throw error;
-  }
-}
-
-/**
- * Migrate family members from user_id to account_id
- * This is a one-time migration function to move existing data
- */
-export async function migrateFamilyMembersToAccount(
-  userId: string,
-  accountId: string
-): Promise<void> {
-  try {
-    // First check if the user_id column exists
-    const { data: columnData, error: columnError } = await supabase
-      .from("information_schema.columns")
-      .select("column_name")
-      .eq("table_name", "family_members")
-      .eq("column_name", "user_id")
-      .single();
-
-    if (columnError || !columnData) {
-      console.log(
-        "No user_id column in family_members table, skipping migration"
-      );
-      return;
-    }
-
-    // Update family members with the specified user_id to use the new account_id
-    const { error } = await supabase
-      .from(FAMILY_MEMBERS_TABLE)
-      .update({ account_id: accountId })
-      .eq("user_id", userId);
-
-    if (error) {
-      console.error("Error migrating family members:", error);
-      throw error;
-    }
-  } catch (error) {
-    console.error("Error migrating family members:", error);
     throw error;
   }
 }

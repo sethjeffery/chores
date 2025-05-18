@@ -1,143 +1,120 @@
-import { v4 as uuidv4 } from "uuid";
 import { supabase } from "../../../supabase";
 
-// Table name
-export const SHARE_TOKENS_TABLE = "share_tokens";
+/**
+ * Get the account's share token
+ */
+export async function getShareToken(
+  accountId: string
+): Promise<{ token: string; accessToken: string; refreshToken: string }> {
+  // First, try to get an existing share token
+  const { data: shareTokens } = await supabase
+    .from("share_tokens")
+    .select("token, access_token, refresh_token")
+    .eq("account_id", accountId)
+    .limit(1);
 
-// Define the database record types
-export interface ShareTokenRecord {
-  id: string;
-  account_id: string;
-  token: string;
-  created_by: string;
-  created_at?: string;
-  last_used_at?: string | null;
-}
+  // If token exists, return it
+  if (shareTokens && shareTokens.length > 0) {
+    return {
+      token: shareTokens[0].token,
+      accessToken: shareTokens[0].access_token,
+      refreshToken: shareTokens[0].refresh_token,
+    };
+  }
 
-// App-level types
-export interface ShareToken {
-  id: string;
-  accountId: string;
-  token: string;
-  createdBy: string;
-  createdAt?: string;
-  lastUsedAt?: string | null;
-}
+  // If no token exists (and no error), we need to create one
+  // First, get the guest user access tokens
+  const { data: accountUsers, error: accountUsersError } = await supabase
+    .from("account_users")
+    .select("access_token, refresh_token")
+    .eq("account_id", accountId)
+    .eq("is_admin", false)
+    .not("access_token", "is", null)
+    .limit(1);
 
-// Conversion functions
-export function toShareToken(record: ShareTokenRecord): ShareToken {
+  if (accountUsersError) {
+    throw accountUsersError;
+  }
+
+  if (!accountUsers || accountUsers.length === 0) {
+    throw new Error("No guest user found for this account");
+  }
+
+  // Create a new share token
+  const { data: newShareToken, error: insertError } = await supabase
+    .from("share_tokens")
+    .insert({
+      account_id: accountId,
+      access_token: accountUsers[0].access_token ?? "",
+      refresh_token: accountUsers[0].refresh_token ?? "",
+    })
+    .select("token, access_token, refresh_token")
+    .single();
+
+  if (insertError) {
+    throw insertError;
+  }
+
+  if (!newShareToken) {
+    throw new Error("Failed to create share token");
+  }
+
   return {
-    id: record.id,
-    accountId: record.account_id,
-    token: record.token,
-    createdBy: record.created_by,
-    createdAt: record.created_at,
-    lastUsedAt: record.last_used_at,
+    token: newShareToken.token,
+    accessToken: newShareToken.access_token,
+    refreshToken: newShareToken.refresh_token,
   };
 }
 
 /**
- * Get the account's share token, creating one if it doesn't exist
+ * Get account access details from a share token
  */
-export async function getOrCreateShareToken(
-  accountId: string
-): Promise<ShareToken> {
-  try {
-    // First check if there's already a token for this account
-    const { data: existingTokens, error: fetchError } = await supabase
-      .from(SHARE_TOKENS_TABLE)
-      .select("*")
-      .eq("account_id", accountId)
-      .limit(1);
+export async function getAccountFromShareToken(
+  token: string
+): Promise<{ accountId: string; accessToken: string; refreshToken: string }> {
+  const { data, error } = await supabase
+    .from("share_tokens")
+    .select("account_id, access_token, refresh_token")
+    .eq("token", token)
+    .single();
 
-    if (fetchError) {
-      console.error("Error fetching share token:", fetchError);
-      throw fetchError;
-    }
-
-    // If token exists, return it
-    if (existingTokens && existingTokens.length > 0) {
-      return toShareToken(existingTokens[0]);
-    }
-
-    // Otherwise create a new one
-    const id = uuidv4();
-    // Generate a secure random token
-    const token = uuidv4().replace(/-/g, "");
-
-    // Get current user
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
-      throw new Error("User not authenticated");
-    }
-
-    const { data, error } = await supabase
-      .from(SHARE_TOKENS_TABLE)
-      .insert({
-        id,
-        account_id: accountId,
-        token,
-        created_by: user.id,
-      })
-      .select()
-      .single();
-
-    if (error) {
-      console.error("Error creating share token:", error);
-      throw error;
-    }
-
-    return toShareToken(data);
-  } catch (error) {
-    console.error("Error managing share token:", error);
+  if (error) {
     throw error;
   }
+
+  return {
+    accountId: data.account_id,
+    accessToken: data.access_token,
+    refreshToken: data.refresh_token,
+  };
 }
 
 /**
- * Get account details using a share token
+ * Refresh the share token with new guest access credentials
  */
-export async function getAccountByToken(
-  token: string
-): Promise<{ id: string; name: string } | null> {
-  try {
-    // Get the token record first to find the account ID
-    const { data: tokenData, error: tokenError } = await supabase
-      .from(SHARE_TOKENS_TABLE)
-      .select("account_id")
-      .eq("token", token)
-      .maybeSingle();
+export async function refreshShareToken(accountId: string): Promise<boolean> {
+  // Get the guest user access tokens
+  const { data: accountUsers, error: accountUsersError } = await supabase
+    .from("account_users")
+    .select("access_token, refresh_token")
+    .eq("account_id", accountId)
+    .eq("is_admin", false)
+    .not("access_token", "is", null)
+    .limit(1);
 
-    if (tokenError || !tokenData) {
-      console.error("Invalid share token or token error:", tokenError);
-      return null;
-    }
-
-    // Now get the account details
-    const accountId = tokenData.account_id;
-    const { data: accountData, error: accountError } = await supabase
-      .from("accounts")
-      .select("id, name")
-      .eq("id", accountId)
-      .maybeSingle();
-
-    if (accountError || !accountData) {
-      console.error("Error fetching account for token:", accountError);
-      return null;
-    }
-
-    // Update the last used timestamp
-    await supabase
-      .from(SHARE_TOKENS_TABLE)
-      .update({ last_used_at: new Date().toISOString() })
-      .eq("token", token);
-
-    return { id: accountData.id, name: accountData.name };
-  } catch (error) {
-    console.error("Error validating share token:", error);
-    return null;
+  if (accountUsersError || !accountUsers || accountUsers.length === 0) {
+    return false;
   }
+
+  // Update the share token with new credentials
+  const { error: updateError } = await supabase
+    .from("share_tokens")
+    .update({
+      access_token: accountUsers[0].access_token ?? "",
+      refresh_token: accountUsers[0].refresh_token ?? "",
+      updated_at: new Date().toISOString(),
+    })
+    .eq("account_id", accountId);
+
+  return !updateError;
 }

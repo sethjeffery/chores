@@ -18,9 +18,19 @@ export type ColumnType = "IDEAS" | "TODO" | "DONE";
 export interface Chore {
   id: string;
   title: string;
-  assignee: string | null; // UUID reference to family_members.id
-  column: ColumnType;
   createdAt: string;
   reward: number | null; // null instead of undefined
   icon: string | null; // null instead of undefined
+  status?: ChoreStatus; // Status is now a separate entity, but we'll include it for convenience
+}
+
+/**
+ * ChoreStatus represents the completion status of a chore
+ * This is stored in a separate table to allow different permissions
+ */
+export interface ChoreStatus {
+  choreId: string;
+  status: ColumnType; // The actual status value (e.g., "IN_PROGRESS", "COMPLETED")
+  assignee: string | null; // UUID reference to family_members.id who completed the chore
+  lastUpdatedAt: string;
 }

@@ -44,7 +44,7 @@ export default function ColumnSection({
       if (chore) {
         // If the chore is coming from a different column,
         // explicitly pass the target column when reassigning
-        if (chore.column !== columnId) {
+        if (chore.status?.status !== columnId) {
           onReassign?.(choreId, memberId, columnId);
         } else {
           // For chores already in this column, just reassign
@@ -71,7 +71,7 @@ export default function ColumnSection({
 
         if (chore) {
           // If it's an unassigned chore, don't allow the drop
-          if (chore && !chore.assignee) {
+          if (chore && !chore.status?.assignee) {
             console.log("Cannot move unassigned chore");
             // Don't call onDrop, just clean up visual state
           } else {
@@ -115,7 +115,7 @@ export default function ColumnSection({
         // We'll need a fallback in case we can't get the chore data
         if (chore) {
           // If it's an unassigned chore and being dropped into TODO, show a different style
-          if (chore && !chore.assignee && columnId === "TODO") {
+          if (chore && !chore.status?.assignee && columnId === "TODO") {
             // Add a not-allowed class directly to the DOM
             e.currentTarget.classList.add("drag-over-invalid");
             e.currentTarget.classList.remove("drag-over");
@@ -281,7 +281,7 @@ export default function ColumnSection({
 
   // Filter chores for this column
   const columnChores = useMemo(
-    () => chores.filter((chore) => chore.column === columnId),
+    () => chores.filter((chore) => chore.status?.status === columnId),
     [chores, columnId]
   );
 
@@ -297,14 +297,14 @@ export default function ColumnSection({
 
       // Fill with chores for this column that have assignees
       columnChores
-        .filter((chore) => chore.assignee)
+        .filter((chore) => chore.status?.assignee)
         .forEach((chore) => {
-          if (chore.assignee) {
+          if (chore.status?.assignee) {
             // Create the array if it doesn't exist yet (useful for handling new family members)
-            if (!result[chore.assignee]) {
-              result[chore.assignee] = [];
+            if (!result[chore.status?.assignee]) {
+              result[chore.status?.assignee] = [];
             }
-            result[chore.assignee].push(chore);
+            result[chore.status?.assignee].push(chore);
           }
         });
     }
@@ -331,15 +331,18 @@ export default function ColumnSection({
       // Sum up rewards for completed chores
       chores
         .filter(
-          (chore) => chore.column === "DONE" && chore.assignee && chore.reward
+          (chore) =>
+            chore.status?.status === "DONE" &&
+            chore.status?.assignee &&
+            chore.reward
         )
         .forEach((chore) => {
-          if (chore.assignee && chore.reward) {
+          if (chore.status?.assignee && chore.reward) {
             // Create the counter if it doesn't exist yet
-            if (totals[chore.assignee] === undefined) {
-              totals[chore.assignee] = 0;
+            if (totals[chore.status?.assignee] === undefined) {
+              totals[chore.status?.assignee] = 0;
             }
-            totals[chore.assignee] += chore.reward;
+            totals[chore.status?.assignee] += chore.reward;
           }
         });
     }

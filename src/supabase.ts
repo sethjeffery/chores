@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import type { Database } from "./database.types";
 
 // Supabase configuration
 // To get these values:
@@ -12,40 +13,45 @@ const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || "your-supabase-url";
 const supabaseKey =
   import.meta.env.VITE_SUPABASE_KEY || "your-supabase-anon-key";
 
-// Create Supabase client with realtime subscription enabled
-export const supabase = createClient(supabaseUrl, supabaseKey, {
-  realtime: {
-    params: {
-      eventsPerSecond: 10,
-    },
-  },
-  global: {
-    // Add support for custom headers (for shared tokens)
-    headers: {
-      "X-Share-Token": location.href.match(/\/shared\/(\w+)/)?.[1] ?? "",
-    },
-  },
-});
+// Check if we're in sharing mode (URL contains /shared/{token})
+const shareTokenMatch = location.href.match(/\/shared\/([a-zA-Z0-9-]+)/);
+const shareToken = shareTokenMatch ? shareTokenMatch[1] : null;
 
-// Define the table name for our chores
-export const CHORES_TABLE = "chores";
-
-// Enable realtime subscriptions for the chores table
-export function enableRealtimeForChores() {
-  supabase
-    .channel("schema-db-changes")
-    .on(
-      "postgres_changes",
-      {
-        event: "*",
-        schema: "public",
-        table: CHORES_TABLE,
+export function createSupabaseClient() {
+  return createClient<Database>(supabaseUrl, supabaseKey, {
+    realtime: {
+      params: {
+        eventsPerSecond: 10,
       },
-      (payload) => {
-        console.log("Realtime change received:", payload);
+    },
+  });
+}
+
+export const supabase = createSupabaseClient();
+
+// If there's a share token in the URL, try to use it for auth
+if (shareToken) {
+  // Get access and refresh tokens directly to avoid circular dependency
+  // with ShareService that imports supabase
+  (async () => {
+    try {
+      const { data } = await supabase
+        .rpc("get_share_token_by_token", { token_param: shareToken })
+        .single()
+        .throwOnError();
+
+      // We're using the token for authentication
+      // This lets us use Supabase's built-in Row Level Security
+      if (data.access_token && data.refresh_token) {
+        await supabase.auth.setSession({
+          access_token: data.access_token,
+          refresh_token: data.refresh_token,
+        });
       }
-    )
-    .subscribe();
+    } catch (error) {
+      console.error("Failed to authenticate via share token:", error);
+    }
+  })();
 }
 
 // Log configuration for debugging

@@ -6,12 +6,9 @@ import { useAuth } from "../../auth/hooks/useAuth";
 import { supabase } from "../../../supabase";
 import type { Account } from "../services/accountService";
 import useSWR from "swr";
-import { useParams } from "react-router-dom";
-import * as shareService from "../services/shareService";
 
 // Provider component that wraps parts of the app that need account data
 export function AccountProvider({ children }: { children: ReactNode }) {
-  const { shareToken } = useParams<{ shareToken: string }>();
   const { user } = useAuth();
   const userId = user?.id;
 
@@ -20,20 +17,10 @@ export function AccountProvider({ children }: { children: ReactNode }) {
     data: accountData,
     error,
     isLoading,
+    mutate,
   } = useSWR(
-    userId || shareToken ? ["account", userId || shareToken] : null,
+    userId ? ["account", userId] : null,
     async () => {
-      if (shareToken) {
-        // Get account details from the token
-        const accountDetails = await shareService.getAccountByToken(shareToken);
-
-        if (!accountDetails) {
-          throw new Error("Invalid share token");
-        }
-
-        return { account: accountDetails, isAdmin: false };
-      }
-
       if (userId) {
         // Get accounts the user belongs to
         const userAccounts = await accountService.getUserAccounts();
@@ -61,7 +48,7 @@ export function AccountProvider({ children }: { children: ReactNode }) {
 
   // Set up real-time subscription to account changes
   useSWR(
-    (userId || shareToken) && activeAccount ? "account-subscription" : null,
+    userId && activeAccount ? "account-subscription" : null,
     () => {
       // Subscribe to account user changes for this specific account
       const channelKey = `account-changes-${activeAccount?.id}`;
@@ -76,7 +63,7 @@ export function AccountProvider({ children }: { children: ReactNode }) {
           {
             event: "*",
             schema: "public",
-            table: accountService.ACCOUNT_USERS_TABLE,
+            table: "account_users",
             filter: `account_id=eq.${accountId}`,
           },
           (payload) => {
@@ -116,11 +103,17 @@ export function AccountProvider({ children }: { children: ReactNode }) {
 
         // Allow manual account creation through this method for the onboarding flow
         const newAccount = await accountService.createAccount(name);
+
+        mutate({
+          account: newAccount,
+          isAdmin: true,
+        });
+
         return newAccount;
       },
       isAdmin,
     }),
-    [activeAccount, isLoading, error, isAdmin]
+    [activeAccount, isLoading, error, isAdmin, mutate]
   );
 
   return (

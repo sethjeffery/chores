@@ -1,41 +1,62 @@
-import { v4 as uuidv4 } from "uuid";
-import { supabase, CHORES_TABLE } from "../../../supabase";
-import type { Chore, ColumnType } from "../../../types";
+import { supabase } from "../../../supabase";
+import type { Chore, ChoreStatus, ColumnType } from "../../../types";
+import type { Database } from "../../../database.types";
 
-// Database type for Supabase
-export type ChoreTable = {
-  id: string;
-  title: string;
-  // Now a UUID reference to family_members.id
-  assignee: string | null;
-  status: string;
-  created_at: string;
-  reward: number | null;
-  icon: string | null;
-  account_id: string | null;
-};
+type DbChore = Database["public"]["Tables"]["chores"]["Row"];
+type DbChoreStatus = Database["public"]["Tables"]["chore_statuses"]["Row"];
+
+type DbChoreUpdate = Database["public"]["Tables"]["chores"]["Update"];
+type DbChoreStatusUpdate = Database["public"]["Tables"]["chore_statuses"]["Update"];
+
+export type InsertChore = Pick<Chore, "title" | "reward" | "icon"> & { status?: Pick<ChoreStatus, 'assignee'> }
 
 // Convert from DB to app format
-export function toChore(record: ChoreTable): Chore {
+export function toChoreStatus(record: DbChoreStatus): ChoreStatus {
   return {
-    id: record.id,
-    title: record.title,
+    choreId: record.chore_id,
+    status: record.status as ColumnType,
     assignee: record.assignee,
-    column: record.status as ColumnType,
-    createdAt: record.created_at,
-    reward: record.reward,
-    icon: record.icon,
+    lastUpdatedAt: record.last_updated_at,
   };
 }
 
+// Convert from DB to app format
+export function toChore(
+  record: DbChore,
+  statusRecord?: DbChoreStatus
+): Chore {
+  const result: Chore = {
+    id: record.id,
+    title: record.title,
+    createdAt: record.created_at ?? '',
+    reward: record.reward,
+    icon: record.icon,
+    status: statusRecord ? toChoreStatus(statusRecord) : undefined,
+  };
+
+  if (statusRecord) {
+    result.status = toChoreStatus(statusRecord);
+  }
+
+  return result;
+}
+
+export function fromChoreStatus(choreStatus: Partial<ChoreStatus>): DbChoreStatusUpdate {
+  const result: DbChoreStatusUpdate = {}
+
+  if (choreStatus.status !== undefined) result.status = choreStatus.status;
+  if (choreStatus.assignee !== undefined) result.assignee = choreStatus.assignee;
+
+  result.last_updated_at = new Date().toISOString();
+  return result;
+}
+
 // Convert from app to DB format
-export function fromChore(chore: Partial<Chore>): Partial<ChoreTable> {
-  const result: Partial<ChoreTable> = {};
+export function fromChore(chore: Partial<Chore>): DbChoreUpdate {
+  const result: DbChoreUpdate = {}
 
   if (chore.id !== undefined) result.id = chore.id;
   if (chore.title !== undefined) result.title = chore.title;
-  if (chore.assignee !== undefined) result.assignee = chore.assignee;
-  if (chore.column !== undefined) result.status = chore.column;
   if (chore.createdAt !== undefined) result.created_at = chore.createdAt;
   if (chore.reward !== undefined) result.reward = chore.reward;
   if (chore.icon !== undefined) result.icon = chore.icon;
@@ -55,23 +76,45 @@ export async function getChores(accountId: string): Promise<Chore[]> {
     console.log(
       `Attempting to fetch chores for account ${accountId} from Supabase...`
     );
-    const { data, error } = await supabase
-      .from(CHORES_TABLE)
+
+    // Fetch chores
+    const { data: choresData, error: choresError } = await supabase
+      .from('chores')
       .select("*")
       .eq("account_id", accountId)
       .order("created_at", { ascending: false });
 
-    if (error) {
-      console.error("Error fetching chores:", error);
-      throw error;
+    if (choresError) {
+      console.error("Error fetching chores:", choresError);
+      throw choresError;
     }
 
-    console.log(
-      `Successfully fetched ${
-        data?.length ?? 0
-      } chores for account ${accountId}`
-    );
-    return (data || []).map(toChore);
+    if (!choresData || choresData.length === 0) {
+      return [];
+    }
+
+    // Fetch statuses for these chores
+    const choreIds = choresData.map((chore) => chore.id);
+    const { data: statusesData, error: statusesError } = await supabase
+      .from('chore_statuses')
+      .select("*")
+      .in("chore_id", choreIds);
+
+    if (statusesError) {
+      console.error("Error fetching chore statuses:", statusesError);
+      // Continue without statuses rather than failing completely
+    }
+
+    // Create a map of chore IDs to statuses
+    const statusMap = new Map<string, DbChoreStatus>();
+    if (statusesData) {
+      statusesData.forEach((status) => {
+        statusMap.set(status.chore_id, status);
+      });
+    }
+
+    // Combine chores with their statuses
+    return choresData.map((chore) => toChore(chore, statusMap.get(chore.id)!));
   } catch (error) {
     console.error("Error fetching chores:", error);
 
@@ -89,59 +132,51 @@ export async function getChores(accountId: string): Promise<Chore[]> {
  * Add a new chore to Supabase
  */
 export async function addChore(
-  chore: Partial<Chore> & { title: string },
+  chore: InsertChore,
   accountId: string
-): Promise<string> {
-  try {
-    if (!accountId) {
-      throw new Error("Account ID is required to add a chore");
-    }
+): Promise<Chore> {
+  // Insert the chore
+  const { data } = await supabase.from('chores').insert({
+    title: chore.title,
+    reward: chore.reward || null,
+    icon: chore.icon || null,
+    created_at: new Date().toISOString(),
+    account_id: accountId,
+  }).select().single().throwOnError();
 
-    const id = uuidv4();
-    const column = chore.column || (chore.assignee ? "TODO" : "IDEAS");
+  const { data: statusData, error: statusError } = await supabase
+    .from('chore_statuses')
+    .insert({
+      chore_id: data.id,
+      status: chore.status?.assignee ? "TODO" : "IDEAS",
+      assignee: chore.status?.assignee ?? null,
+      last_updated_at: new Date().toISOString(),
+    }).select().single();
 
-    const { error } = await supabase.from(CHORES_TABLE).insert({
-      id,
-      title: chore.title,
-      assignee: chore.assignee || null,
-      status: column,
-      reward: chore.reward || null,
-      icon: chore.icon || null,
-      created_at: new Date().toISOString(),
-      account_id: accountId,
-    });
-
-    if (error) {
-      console.error("Error adding chore:", error);
-      throw error;
-    }
-
-    return id;
-  } catch (error) {
-    console.error("Error adding chore:", error);
-    throw error;
+  if (statusError) {
+    console.error("Error adding chore status:", statusError);
+    await supabase.from('chores').delete().eq("id", data.id);
+    throw statusError;
   }
+
+  return toChore(data, statusData!);
 }
 
 /**
  * Update an existing chore in Supabase
  */
-export async function updateChore(
+export async function updateChoreStatus(
   id: string,
-  updates: Partial<Chore>
+  choreStatus: Partial<ChoreStatus>
 ): Promise<void> {
   try {
-    // Convert to database format
-    const dbUpdates = fromChore(updates);
+    const { error: updateError } = await supabase
+      .from('chore_statuses')
+      .update(fromChoreStatus(choreStatus))
+      .eq("chore_id", id);
 
-    const { error } = await supabase
-      .from(CHORES_TABLE)
-      .update(dbUpdates)
-      .eq("id", id);
-
-    if (error) {
-      console.error(`Error updating chore ${id}:`, error);
-      throw error;
+    if (updateError) {
+      console.error(`Error updating status for chore ${id}:`, updateError);
     }
   } catch (error) {
     console.error(`Error updating chore ${id}:`, error);
@@ -154,7 +189,16 @@ export async function updateChore(
  */
 export async function deleteChore(id: string): Promise<void> {
   try {
-    const { error } = await supabase.from(CHORES_TABLE).delete().eq("id", id);
+    // Delete status first (will cascade automatically, but being explicit)
+    try {
+      await supabase.from('chore_statuses').delete().eq("chore_id", id);
+    } catch (statusError) {
+      console.error(`Error deleting status for chore ${id}:`, statusError);
+      // Continue with chore deletion even if status deletion fails
+    }
+
+    // Delete the chore
+    const { error } = await supabase.from('chores').delete().eq("id", id);
 
     if (error) {
       console.error(`Error deleting chore ${id}:`, error);
@@ -172,11 +216,12 @@ export async function deleteChore(id: string): Promise<void> {
 export async function moveChore(id: string, column: ColumnType): Promise<void> {
   try {
     // If moving to IDEAS, also remove assignee
-    if (column === "IDEAS") {
-      await updateChore(id, { column, assignee: null });
-    } else {
-      await updateChore(id, { column });
-    }
+    const { error: updateError } = await supabase
+      .from('chore_statuses')
+      .update(column === "IDEAS" ? { assignee: null, status: column } : { status: column })
+      .eq("chore_id", id);
+
+    if (updateError) throw updateError;
   } catch (error) {
     console.error(`Error moving chore ${id}:`, error);
     throw error;
@@ -190,71 +235,28 @@ export async function reassignChore(
   id: string,
   assigneeId: string, // UUID of the family member
   targetColumn?: ColumnType
-): Promise<void> {
-  try {
-    // If target column is provided, use it
-    if (targetColumn) {
-      await updateChore(id, { assignee: assigneeId, column: targetColumn });
-    } else {
-      // Otherwise, get the current chore
-      const { data, error } = await supabase
-        .from(CHORES_TABLE)
-        .select("*")
-        .eq("id", id)
-        .single();
+): Promise<ChoreStatus> {
+  const { data: choreStatusData } = await supabase
+    .from('chore_statuses')
+    .select('assignee, status')
+    .eq('chore_id', id)
+    .throwOnError()
+    .single();
 
-      if (error) {
-        throw error;
-      }
-
-      // If chore was in IDEAS, move to TODO when assigned
-      if (data && data.status === "IDEAS") {
-        await updateChore(id, { assignee: assigneeId, column: "TODO" });
-      } else {
-        // Otherwise just update the assignee
-        await updateChore(id, { assignee: assigneeId });
-      }
-    }
-  } catch (error) {
-    console.error(`Error reassigning chore ${id}:`, error);
-    throw error;
+  if (!choreStatusData) throw new Error("Chore not found");
+  if (!targetColumn) {
+    targetColumn = choreStatusData.status as ColumnType;
+    if (!assigneeId && targetColumn !== "IDEAS")
+      targetColumn = "IDEAS";
+    if (assigneeId && targetColumn === "IDEAS")
+      targetColumn = "TODO";
   }
-}
 
-/**
- * Migrate chores from user_id to account_id
- * This is a one-time migration function to move existing data
- */
-export async function migrateChoreToAccount(
-  userId: string,
-  accountId: string
-): Promise<void> {
-  try {
-    // First check if the user_id column exists
-    const { data: columnData, error: columnError } = await supabase
-      .from("information_schema.columns")
-      .select("column_name")
-      .eq("table_name", "chores")
-      .eq("column_name", "user_id")
-      .single();
+  const { data } = await supabase
+    .from('chore_statuses')
+    .update({ assignee: assigneeId, status: targetColumn })
+    .eq("chore_id", id)
+    .throwOnError().select().single();
 
-    if (columnError || !columnData) {
-      console.log("No user_id column in chores table, skipping migration");
-      return;
-    }
-
-    // Update chores with the specified user_id to use the new account_id
-    const { error } = await supabase
-      .from(CHORES_TABLE)
-      .update({ account_id: accountId })
-      .eq("user_id", userId);
-
-    if (error) {
-      console.error("Error migrating chores:", error);
-      throw error;
-    }
-  } catch (error) {
-    console.error("Error migrating chores:", error);
-    throw error;
-  }
+  return toChoreStatus(data!);
 }

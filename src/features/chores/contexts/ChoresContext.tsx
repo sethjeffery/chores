@@ -1,5 +1,6 @@
 import { createContext } from "react";
 import type { Chore, ColumnType } from "../../../types";
+import type { InsertChore } from "../services/choreService";
 
 // Define the context type
 export interface ChoresContextType {
@@ -8,19 +9,12 @@ export interface ChoresContextType {
   backgroundSaving: boolean;
   error: string | null;
   syncStatus: "synced" | "syncing" | "offline";
-  addChore: (
-    title: string,
-    assigneeId?: string,
-    reward?: number,
-    icon?: string,
-    column?: ColumnType
-  ) => Promise<string | null>;
-  updateChore: (id: string, updates: Partial<Chore>) => Promise<void>;
+  addChore: (chore: InsertChore) => Promise<Chore | null>;
   deleteChore: (id: string) => Promise<void>;
   moveChore: (id: string, column: ColumnType) => Promise<void>;
   reassignChore: (
     id: string,
-    assigneeId: string | null,
+    assigneeId: string,
     targetColumn?: ColumnType
   ) => Promise<void>;
 }

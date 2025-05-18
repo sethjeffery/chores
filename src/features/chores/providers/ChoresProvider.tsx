@@ -2,12 +2,15 @@ import { useCallback, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { ChoresContext } from "../contexts/ChoresContext";
 import * as choreService from "../services/choreService";
-import { supabase, CHORES_TABLE } from "../../../supabase";
+import { supabase } from "../../../supabase";
 import type { Chore, ColumnType } from "../../../types";
 import { useAccount } from "../../account/hooks/useAccount";
 import useSWR from "swr";
 import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
-import type { ChoreTable } from "../services/choreService";
+import type { Database } from "../../../database.types";
+
+type DbChore = Database["public"]["Tables"]["chores"]["Row"];
+type DbChoreStatus = Database["public"]["Tables"]["chore_statuses"]["Row"];
 
 // Provider component that wraps the app with chores data
 export function ChoresProvider({ children }: { children: ReactNode }) {
@@ -49,7 +52,7 @@ export function ChoresProvider({ children }: { children: ReactNode }) {
     isLoading,
   } = useSWR(
     accountId ? ["chores-data", accountId] : null,
-    () => choreService.getChores(accountId as string),
+    () => choreService.getChores(accountId!),
     {
       revalidateOnFocus: false,
       dedupingInterval: 3000, // Reduce unnecessary refetches
@@ -60,13 +63,13 @@ export function ChoresProvider({ children }: { children: ReactNode }) {
   useSWR(
     accountId ? ["chores-subscription", accountId] : null,
     () => {
-      // Handler for real-time changes
-      const handleChange = async (
+      // Handler for real-time chore changes
+      const handleChoreChange = async (
         eventType: string,
-        newRecord: ChoreTable | null,
-        oldRecord: Partial<ChoreTable> | null
+        newRecord: DbChore | null,
+        oldRecord: Partial<DbChore> | null
       ) => {
-        console.log(`${eventType} event processed`);
+        console.log(`Chore ${eventType} event processed`);
 
         // Get ID safely from the payload
         const changeId = newRecord?.id || oldRecord?.id;
@@ -81,11 +84,20 @@ export function ChoresProvider({ children }: { children: ReactNode }) {
 
         mutate((current = []) => {
           if (eventType === "INSERT" && newRecord) {
-            return [...current, choreService.toChore(newRecord)];
+            return [
+              ...current,
+              choreService.toChore(newRecord, {
+                status: "TODO",
+                assignee: null,
+                chore_id: newRecord.id,
+                last_updated_at: newRecord.created_at,
+                updated_by: null,
+              }),
+            ];
           } else if (eventType === "UPDATE" && newRecord) {
             return current.map((chore) =>
               chore.id === newRecord.id
-                ? choreService.toChore(newRecord)
+                ? { ...choreService.toChore(newRecord), status: chore.status }
                 : chore
             );
           } else if (eventType === "DELETE" && oldRecord?.id) {
@@ -95,23 +107,58 @@ export function ChoresProvider({ children }: { children: ReactNode }) {
         });
       };
 
-      // Create Supabase subscription
-      const channel = supabase
+      // Handler for real-time chore status changes
+      const handleChoreStatusChange = async (
+        eventType: string,
+        newRecord: DbChoreStatus | null,
+        oldRecord: Partial<DbChoreStatus> | null
+      ) => {
+        console.log(`ChoreStatus ${eventType} event processed:`, newRecord);
+
+        // Get chore ID from the status update
+        const choreId = newRecord?.chore_id || oldRecord?.chore_id;
+
+        // Skip if this change originated from this client or no chore ID
+        if (!choreId || localChangesRef.current.has(choreId)) {
+          if (choreId) {
+            localChangesRef.current.delete(choreId);
+          }
+          return;
+        }
+
+        if (eventType === "UPDATE" && newRecord) {
+          // Update the chore's status
+          mutate((current = []) => {
+            return current.map((chore) => {
+              if (chore.id === choreId) {
+                return {
+                  ...chore,
+                  status: choreService.toChoreStatus(newRecord),
+                };
+              }
+              return chore;
+            });
+          });
+        }
+      };
+
+      // Create Supabase subscription for chores
+      const choreChannel = supabase
         .channel(`chores-sync-${accountId}`)
         .on(
           "postgres_changes",
           {
             event: "*",
             schema: "public",
-            table: CHORES_TABLE,
+            table: "chores",
             filter: `account_id=eq.${accountId}`,
           },
-          (payload: RealtimePostgresChangesPayload<ChoreTable>) => {
+          (payload: RealtimePostgresChangesPayload<DbChore>) => {
             console.log("Realtime chore change received:", payload);
-            handleChange(
+            handleChoreChange(
               payload.eventType,
-              payload.new as ChoreTable,
-              payload.old as Partial<ChoreTable>
+              payload.new as DbChore,
+              payload.old as Partial<DbChore>
             );
           }
         )
@@ -121,14 +168,40 @@ export function ChoresProvider({ children }: { children: ReactNode }) {
           setSyncState({ saving: false, status: syncStatus });
         });
 
+      // Create Supabase subscription for chore statuses
+      const statusChannel = supabase
+        .channel(`chore-statuses-sync-${accountId}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "chore_statuses",
+            // We can't filter by account_id here since this table doesn't have that column
+          },
+          (payload: RealtimePostgresChangesPayload<DbChoreStatus>) => {
+            console.log("Realtime chore status change received:", payload);
+            handleChoreStatusChange(
+              payload.eventType,
+              payload.new as DbChoreStatus,
+              payload.old as Partial<DbChoreStatus>
+            );
+          }
+        )
+        .subscribe((status) => {
+          console.log(`Subscription status for chore statuses:`, status);
+        });
+
       // Return cleanup function
-      return channel;
+      return [choreChannel, statusChannel];
     },
     {
-      onSuccess: (channel) => {
+      onSuccess: (channels) => {
         return () => {
-          if (channel) {
-            supabase.removeChannel(channel);
+          if (channels && channels.length) {
+            channels.forEach((channel) => {
+              supabase.removeChannel(channel);
+            });
           }
         };
       },
@@ -137,13 +210,7 @@ export function ChoresProvider({ children }: { children: ReactNode }) {
 
   // Add a new chore
   const addChore = useCallback(
-    async (
-      title: string,
-      assigneeId?: string,
-      reward?: number,
-      icon?: string,
-      column: ColumnType = assigneeId ? "TODO" : "IDEAS"
-    ) => {
+    async (chore: choreService.InsertChore) => {
       if (!accountId) {
         console.error("No active account. Cannot add chore.");
         return null;
@@ -155,13 +222,15 @@ export function ChoresProvider({ children }: { children: ReactNode }) {
 
         // Optimistic update
         const newChore: Chore = {
+          ...chore,
           id: tempId,
-          title,
-          assignee: assigneeId ?? null,
-          column,
           createdAt: new Date().toISOString(),
-          reward: reward ?? null,
-          icon: icon ?? null,
+          status: {
+            choreId: tempId,
+            status: chore.status?.assignee ? "TODO" : "IDEAS",
+            assignee: chore.status?.assignee ?? null,
+            lastUpdatedAt: new Date().toISOString(),
+          },
         };
 
         return withSyncing(async () => {
@@ -169,57 +238,32 @@ export function ChoresProvider({ children }: { children: ReactNode }) {
           mutate((current = []) => [...current, newChore], false);
 
           // Persist to database
-          const permanentId = await choreService.addChore(newChore, accountId);
+          const insertedChore = await choreService.addChore(
+            newChore as choreService.InsertChore,
+            accountId
+          );
 
           // Prevent duplicate updates from real-time subscription
-          localChangesRef.current.add(permanentId);
+          localChangesRef.current.add(insertedChore.id);
 
           // Update temporary ID with permanent one
           mutate(
             (current = []) =>
               current.map((chore) =>
-                chore.id === tempId ? { ...chore, id: permanentId } : chore
+                chore.id === tempId ? { ...insertedChore } : chore
               ),
             false
           );
-          return permanentId;
+
+          return insertedChore;
         });
       } catch (err) {
         console.error("Failed to add chore:", err);
-
-        // Remove the temporary chore
-        mutate((current = []) =>
-          current.filter((chore) => !chore.id.startsWith("temp-"))
-        );
-
+        mutate();
         return null;
       }
     },
     [accountId, mutate, withSyncing]
-  );
-
-  // Update a chore
-  const updateChore = useCallback(
-    async (id: string, updates: Partial<Chore>) => {
-      try {
-        // Optimistic update
-        mutate(
-          (current = []) =>
-            current.map((chore) =>
-              chore.id === id ? { ...chore, ...updates } : chore
-            ),
-          false
-        );
-
-        // Track local change
-        localChangesRef.current.add(id);
-        await withSyncing(() => choreService.updateChore(id, updates));
-      } catch (err) {
-        console.error("Failed to update chore:", err);
-        mutate(); // Revalidate to restore correct state
-      }
-    },
-    [mutate, withSyncing]
   );
 
   // Delete a chore
@@ -252,12 +296,16 @@ export function ChoresProvider({ children }: { children: ReactNode }) {
             current.map((chore) => {
               if (chore.id !== id) return chore;
 
-              // If moving to IDEAS, also remove assignee
-              if (column === "IDEAS") {
-                return { ...chore, column, assignee: null };
-              }
-
-              return { ...chore, column };
+              return {
+                ...chore,
+                status: {
+                  choreId: chore.id,
+                  assignee:
+                    column === "IDEAS" ? null : chore.status?.assignee ?? null,
+                  lastUpdatedAt: new Date().toISOString(),
+                  status: column,
+                },
+              };
             }),
           false
         );
@@ -275,11 +323,7 @@ export function ChoresProvider({ children }: { children: ReactNode }) {
 
   // Reassign a chore to a different family member
   const reassignChore = useCallback(
-    async (
-      id: string,
-      assigneeId: string | null,
-      targetColumn?: ColumnType
-    ) => {
+    async (id: string, assigneeId: string, targetColumn?: ColumnType) => {
       try {
         // Optimistic update
         mutate(
@@ -287,18 +331,17 @@ export function ChoresProvider({ children }: { children: ReactNode }) {
             current.map((chore) => {
               if (chore.id !== id) return chore;
 
-              // If assigning and chore is in IDEAS, move to TODO
-              if (assigneeId && chore.column === "IDEAS" && !targetColumn) {
-                return { ...chore, assignee: assigneeId, column: "TODO" };
-              }
-
-              // If target column provided, use it
-              if (targetColumn) {
-                return { ...chore, assignee: assigneeId, column: targetColumn };
-              }
-
-              // Otherwise just update assignee
-              return { ...chore, assignee: assigneeId };
+              return {
+                ...chore,
+                status: {
+                  choreId: id,
+                  lastUpdatedAt: new Date().toISOString(),
+                  assignee: assigneeId,
+                  ...(targetColumn
+                    ? { status: targetColumn }
+                    : { status: chore.status?.status ?? "IDEAS" }),
+                },
+              };
             }),
           false
         );
@@ -307,11 +350,20 @@ export function ChoresProvider({ children }: { children: ReactNode }) {
         localChangesRef.current.add(id);
 
         await withSyncing(async () => {
-          if (assigneeId === null) {
-            await choreService.updateChore(id, { assignee: null });
-          } else {
-            await choreService.reassignChore(id, assigneeId, targetColumn);
-          }
+          const newStatus = await choreService.reassignChore(
+            id,
+            assigneeId,
+            targetColumn
+          );
+
+          mutate(
+            (current = []) =>
+              current.map((chore) => {
+                if (chore.id !== id) return chore;
+                return { ...chore, status: newStatus };
+              }),
+            false
+          );
         });
       } catch (err) {
         console.error("Failed to reassign chore:", err);
@@ -330,7 +382,6 @@ export function ChoresProvider({ children }: { children: ReactNode }) {
       error: error ? String(error) : null,
       syncStatus: syncState.status,
       addChore,
-      updateChore,
       deleteChore,
       moveChore,
       reassignChore,
@@ -341,7 +392,6 @@ export function ChoresProvider({ children }: { children: ReactNode }) {
       syncState,
       error,
       addChore,
-      updateChore,
       deleteChore,
       moveChore,
       reassignChore,

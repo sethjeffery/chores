@@ -1,28 +1,6 @@
-import { v4 as uuidv4 } from "uuid";
 import { supabase } from "../../../supabase";
+import type { Database } from "../../../database.types";
 
-// Table names
-export const ACCOUNTS_TABLE = "accounts";
-export const ACCOUNT_USERS_TABLE = "account_users";
-
-// Define the database record types
-export interface AccountRecord {
-  id: string;
-  name: string;
-  created_at?: string;
-}
-
-export interface AccountUserRecord {
-  id: string;
-  account_id: string;
-  user_id: string;
-  created_at?: string;
-  is_admin: boolean;
-  user_email?: string;
-  user_name?: string;
-}
-
-// App-level types
 export interface Account {
   id: string;
   name: string;
@@ -33,26 +11,28 @@ export interface AccountUser {
   accountId: string;
   userId: string;
   isAdmin: boolean;
+  isGuest?: boolean;
   email?: string;
   name?: string;
 }
 
 // Conversion functions
-export function toAccount(record: AccountRecord): Account {
+export function toAccount(record: Database["public"]["Tables"]["accounts"]["Row"]): Account {
   return {
     id: record.id,
     name: record.name,
   };
 }
 
-export function toAccountUser(record: AccountUserRecord): AccountUser {
+export function toAccountUser(record: Database["public"]["Tables"]["account_users"]["Row"]): AccountUser {
   return {
     id: record.id,
     accountId: record.account_id,
     userId: record.user_id,
-    isAdmin: record.is_admin,
-    email: record.user_email || "",
-    name: record.user_name || "Member",
+    isAdmin: record.is_admin ?? false,
+    isGuest: Boolean(record.access_token), // guest users login via share link
+    email: record.user_email ?? "",
+    name: record.user_name ?? "Member",
   };
 }
 
@@ -72,7 +52,7 @@ export async function getUserAccounts(): Promise<Account[]> {
 
     // Get accounts the user belongs to
     const { data: accountUsers, error: accountUsersError } = await supabase
-      .from(ACCOUNT_USERS_TABLE)
+      .from('account_users')
       .select("account_id")
       .eq("user_id", user.id);
 
@@ -91,7 +71,7 @@ export async function getUserAccounts(): Promise<Account[]> {
     // Get the accounts
     const accountIds = accountUsers.map((au) => au.account_id);
     const { data: accounts, error: accountsError } = await supabase
-      .from(ACCOUNTS_TABLE)
+      .from('accounts')
       .select("*")
       .in("id", accountIds);
 
@@ -115,7 +95,7 @@ export async function getAccountById(
 ): Promise<Account | null> {
   try {
     const { data, error } = await supabase
-      .from(ACCOUNTS_TABLE)
+      .from('accounts')
       .select("*")
       .eq("id", accountId)
       .single();
@@ -140,49 +120,32 @@ export async function getAccountById(
  * Create a new account and make the current user an admin
  */
 export async function createAccount(name: string): Promise<Account> {
-  try {
-    // Get current user
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+  // Get current user
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("User not authenticated");
 
-    if (!user) {
-      throw new Error("User not authenticated");
-    }
+  // Get the access token for authorization
+  const { data: { session } } = await supabase.auth.getSession();
+  const accessToken = session?.access_token;
 
-    // Create a new account
-    const accountId = uuidv4();
-    const { error: accountError } = await supabase.from(ACCOUNTS_TABLE).insert({
-      id: accountId,
-      name,
-    });
+  if (!accessToken) throw new Error("No access token available");
 
-    if (accountError) {
-      console.error("Error creating account:", accountError);
-      throw accountError;
-    }
+  // Call the API to create the account
+  const response = await fetch('/api/create-account', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${accessToken}`
+    },
+    body: JSON.stringify({ name })
+  });
 
-    // Add the current user as an admin of the account
-    const { error: accountUserError } = await supabase
-      .from(ACCOUNT_USERS_TABLE)
-      .insert({
-        account_id: accountId,
-        user_id: user.id,
-        is_admin: true,
-      });
-
-    if (accountUserError) {
-      console.error("Error adding user to account:", accountUserError);
-      // Try to rollback the account creation
-      await supabase.from(ACCOUNTS_TABLE).delete().eq("id", accountId);
-      throw accountUserError;
-    }
-
-    return (await getAccountById(accountId)) as Account;
-  } catch (error) {
-    console.error("Error creating account:", error);
-    throw error;
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.error || 'Failed to create account');
   }
+
+  return toAccount(await response.json());
 }
 
 /**
@@ -193,7 +156,7 @@ export async function getAccountUsers(
 ): Promise<AccountUser[]> {
   try {
     const { data, error } = await supabase
-      .from(ACCOUNT_USERS_TABLE)
+      .from('account_users')
       .select("*")
       .eq("account_id", accountId);
 
@@ -218,58 +181,39 @@ export async function addUserToAccount(
   isAdmin: boolean = false,
   userEmail?: string,
   userName?: string
-): Promise<string> {
-  try {
-    const id = uuidv4();
+): Promise<AccountUser> {
+  // If user info is not provided, try to get it from auth
+  let email = userEmail;
+  let name = userName;
 
-    // If user info is not provided, try to get it from auth
-    let email = userEmail;
-    let name = userName;
-
-    if (!email || !name) {
-      try {
-        // Try to get user info for the current user
-        const { data: authData } = await supabase.auth.getUser();
-        if (authData.user && authData.user.id === userId) {
-          email = email || authData.user.email;
-          name =
-            name ||
-            authData.user.user_metadata?.full_name ||
-            authData.user.user_metadata?.name ||
-            authData.user.email?.split("@")[0] ||
-            "Member";
-        }
-      } catch (err) {
-        console.error("Error getting user info:", err);
+  if (!email || !name) {
+    try {
+      // Try to get user info for the current user
+      const { data: authData } = await supabase.auth.getUser();
+      if (authData.user && authData.user.id === userId) {
+        email = email || authData.user.email;
+        name =
+          name ||
+          authData.user.user_metadata?.full_name ||
+          authData.user.user_metadata?.name ||
+          authData.user.email?.split("@")[0] ||
+          "Member";
       }
+    } catch (err) {
+      console.error("Error getting user info:", err);
     }
-
-    // Insert the account user with available info
-    const { error } = await supabase.from(ACCOUNT_USERS_TABLE).insert({
-      id,
-      account_id: accountId,
-      user_id: userId,
-      is_admin: isAdmin,
-      user_email: email,
-      user_name: name,
-    });
-
-    if (error) {
-      console.error(
-        `Error adding user ${userId} to account ${accountId}:`,
-        error
-      );
-      throw error;
-    }
-
-    return id;
-  } catch (error) {
-    console.error(
-      `Error adding user ${userId} to account ${accountId}:`,
-      error
-    );
-    throw error;
   }
+
+  // Insert the account user with available info
+  const { data: accountUser } = await supabase.from('account_users').insert({
+    account_id: accountId,
+    user_id: userId,
+    is_admin: isAdmin,
+    user_email: email,
+    user_name: name,
+  }).select().single().throwOnError();
+
+  return toAccountUser(accountUser);
 }
 
 /**
@@ -280,7 +224,7 @@ export async function removeUserFromAccount(
 ): Promise<void> {
   try {
     const { error } = await supabase
-      .from(ACCOUNT_USERS_TABLE)
+      .from('account_users')
       .delete()
       .eq("id", accountUserId);
 
@@ -303,7 +247,7 @@ export async function updateUserAdminStatus(
 ): Promise<void> {
   try {
     const { error } = await supabase
-      .from(ACCOUNT_USERS_TABLE)
+      .from('account_users')
       .update({ is_admin: isAdmin })
       .eq("id", accountUserId);
 
@@ -338,7 +282,7 @@ export async function isUserAccountAdmin(accountId: string): Promise<boolean> {
     }
 
     const { data, error } = await supabase
-      .from(ACCOUNT_USERS_TABLE)
+      .from('account_users')
       .select("is_admin")
       .eq("account_id", accountId)
       .eq("user_id", user.id)
@@ -348,7 +292,7 @@ export async function isUserAccountAdmin(accountId: string): Promise<boolean> {
       return false;
     }
 
-    return data.is_admin;
+    return data.is_admin ?? false;
   } catch (error) {
     console.error(
       `Error checking admin status for account ${accountId}:`,
@@ -366,11 +310,11 @@ export async function transferUserToAccount(
   userId: string,
   targetAccountId: string,
   makeAdmin: boolean = false
-): Promise<string> {
+): Promise<AccountUser> {
   try {
     // Get the user's current account
     const { data: currentAccountUsers, error: fetchError } = await supabase
-      .from(ACCOUNT_USERS_TABLE)
+      .from('account_users')
       .select("id, account_id, user_email, user_name")
       .eq("user_id", userId);
 
@@ -391,12 +335,12 @@ export async function transferUserToAccount(
     // to make this as atomic as possible
 
     // 1. First, add the user to the new account with their user info
-    const newAccountUserId = await addUserToAccount(
+    const newAccountUser = await addUserToAccount(
       targetAccountId,
       userId,
       makeAdmin,
-      userEmail,
-      userName
+      userEmail ?? undefined,
+      userName ?? undefined
     );
 
     // 2. Then, remove the user from their current account(s)
@@ -414,7 +358,7 @@ export async function transferUserToAccount(
 
       // Check if this was the last user in the account
       const { data: remainingUsers, error: countError } = await supabase
-        .from(ACCOUNT_USERS_TABLE)
+        .from('account_users')
         .select("id")
         .eq("account_id", accountUser.account_id);
 
@@ -426,7 +370,7 @@ export async function transferUserToAccount(
       // If there are no users left, delete the account
       if (remainingUsers.length === 0) {
         const { error: deleteError } = await supabase
-          .from(ACCOUNTS_TABLE)
+          .from('accounts')
           .delete()
           .eq("id", accountUser.account_id);
 
@@ -438,7 +382,7 @@ export async function transferUserToAccount(
       }
     }
 
-    return newAccountUserId;
+    return newAccountUser;
   } catch (error) {
     console.error(
       `Error transferring user ${userId} to account ${targetAccountId}:`,

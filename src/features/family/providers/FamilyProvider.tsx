@@ -8,6 +8,9 @@ import { useAccount } from "../../account/hooks/useAccount";
 import { DEFAULT_FAMILY_MEMBERS } from "../constants/defaultMembers";
 import useSWR from "swr";
 import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
+import type { Database } from "../../../database.types";
+
+type DbFamilyMember = Database["public"]["Tables"]["family_members"]["Row"];
 
 // Provider component that wraps parts of the app that need family data
 export function FamilyProvider({ children }: { children: ReactNode }) {
@@ -50,18 +53,15 @@ export function FamilyProvider({ children }: { children: ReactNode }) {
           {
             event: "*",
             schema: "public",
-            table: familyService.FAMILY_MEMBERS_TABLE,
+            table: "family_members",
             filter: `account_id=eq.${accountId}`,
           },
-          (
-            payload: RealtimePostgresChangesPayload<familyService.FamilyMemberRecord>
-          ) => {
+          (payload: RealtimePostgresChangesPayload<DbFamilyMember>) => {
             console.log("Realtime family member change received:", payload);
 
             const { eventType } = payload;
-            const newRecord = payload.new as familyService.FamilyMemberRecord;
-            const oldRecord =
-              payload.old as Partial<familyService.FamilyMemberRecord>;
+            const newRecord = payload.new as DbFamilyMember;
+            const oldRecord = payload.old as Partial<DbFamilyMember>;
 
             // Get ID safely from the payload
             const changeId = newRecord?.id || oldRecord?.id;

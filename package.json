@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:api": "vercel dev",
     "prebuild": "node generate-icons.js",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
@@ -15,10 +16,10 @@
     "@phosphor-icons/react": "^2.1.8",
     "@supabase/supabase-js": "^2.49.4",
     "@types/uuid": "^10.0.0",
+    "@vercel/node": "^5.1.16",
     "autoprefixer": "^10.4.21",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
-    "firebase": "^11.7.1",
     "lodash": "^4.17.21",
     "postcss": "^8.5.3",
     "react": "^19.1.0",
@@ -43,6 +44,7 @@
     "svg2png": "^4.1.1",
     "typescript": "~5.8.3",
     "typescript-eslint": "^8.30.1",
+    "vercel": "^41.7.8",
     "vite": "^6.3.5",
     "vite-plugin-pwa": "^1.0.0"
   }

@@ -25,14 +25,14 @@ export default function ShareManager() {
 
   // Use SWR to fetch and cache share token
   const {
-    data: token,
+    data: shareToken,
     error,
     isLoading,
   } = useSWR(
     activeAccount && isAdmin ? `share-token-${activeAccount.id}` : null,
     async () => {
       if (!activeAccount) return null;
-      return await shareService.getOrCreateShareToken(activeAccount.id);
+      return await shareService.getShareToken(activeAccount.id);
     },
     {
       revalidateOnFocus: false,
@@ -40,11 +40,11 @@ export default function ShareManager() {
     }
   );
 
+  const shareUrl = `${window.location.origin}/shared/${shareToken?.token}`;
+
   // Copy share link to clipboard
   const copyShareLink = () => {
-    if (!token) return;
-
-    const shareUrl = `${window.location.origin}/shared/${token.token}`;
+    if (!shareToken) return;
 
     navigator.clipboard
       .writeText(shareUrl)
@@ -68,17 +68,6 @@ export default function ShareManager() {
       });
   };
 
-  // Format date for display
-  const formatDate = (dateString?: string | null) => {
-    if (!dateString) return "Never";
-    const date = new Date(dateString);
-    return date.toLocaleDateString(undefined, {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
-  };
-
   if (!activeAccount || !isAdmin) return null;
 
   return (
@@ -92,7 +81,11 @@ export default function ShareManager() {
 
       {error && (
         <div className="bg-red-50 border-l-4 border-red-400 p-4 mb-4 rounded-md">
-          <p className="text-red-700">Failed to load child-friendly link.</p>
+          <p className="text-red-700">
+            {error.toString().includes("No guest user")
+              ? "No guest user found for this account. Please try creating a new account."
+              : "Failed to load child-friendly link."}
+          </p>
         </div>
       )}
 
@@ -100,7 +93,7 @@ export default function ShareManager() {
         <div className="py-4 flex justify-center">
           <div className="animate-spin h-8 w-8 border-4 border-indigo-500 border-t-transparent rounded-full"></div>
         </div>
-      ) : !token ? (
+      ) : !shareToken ? (
         <p className="text-gray-500 text-center py-8 bg-gray-50 rounded-lg">
           Could not generate child-friendly link. Please try again later.
         </p>
@@ -111,13 +104,6 @@ export default function ShareManager() {
               <h4 className="text-lg font-medium mb-2">
                 Your Child-friendly Link
               </h4>
-
-              <div className="mt-1 text-sm text-gray-500">
-                <div>Created: {formatDate(token.createdAt)}</div>
-                {token.lastUsedAt && (
-                  <div>Last used: {formatDate(token.lastUsedAt)}</div>
-                )}
-              </div>
 
               <div className="mt-3 flex space-x-2">
                 <button
@@ -145,7 +131,7 @@ export default function ShareManager() {
                 </button>
 
                 <a
-                  href={`${window.location.origin}/shared/${token.token}`}
+                  href={shareUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm font-medium flex items-center"
@@ -157,10 +143,7 @@ export default function ShareManager() {
             </div>
 
             <div className="bg-white p-2 rounded border">
-              <QRCode
-                value={`${window.location.origin}/shared/${token.token}`}
-                size={100}
-              />
+              <QRCode value={shareUrl} size={100} />
             </div>
           </div>
         </div>

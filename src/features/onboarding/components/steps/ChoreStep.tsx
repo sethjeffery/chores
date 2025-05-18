@@ -33,14 +33,17 @@ export default function ChoreStep() {
 
     try {
       // Add the chore to the database
-      await addChore(
-        formData.title,
-        formData.assigneeId,
-        typeof formData.reward === "string"
-          ? parseFloat(formData.reward)
-          : formData.reward,
-        formData.icon
-      );
+      await addChore({
+        title: formData.title,
+        reward:
+          typeof formData.reward === "string"
+            ? parseFloat(formData.reward)
+            : formData.reward ?? null,
+        icon: formData.icon,
+        status: {
+          assignee: formData.assigneeId ?? null,
+        },
+      });
 
       // Complete the onboarding process
       completeOnboarding();
