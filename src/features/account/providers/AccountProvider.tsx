@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import type { ReactNode } from "react";
 import { AccountContext } from "../contexts/AccountContext";
 import * as accountService from "../services/accountService";
@@ -6,11 +6,14 @@ import { useAuth } from "../../auth/hooks/useAuth";
 import { supabase } from "../../../supabase";
 import type { Account } from "../services/accountService";
 import useSWR from "swr";
+import { useNavigate, useLocation } from "react-router-dom";
 
 // Provider component that wraps parts of the app that need account data
 export function AccountProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const userId = user?.id;
+  const navigate = useNavigate();
+  const location = useLocation();
 
   // Fetch the user's account (no longer auto-creating)
   const {
@@ -23,13 +26,11 @@ export function AccountProvider({ children }: { children: ReactNode }) {
     async () => {
       if (userId) {
         // Get accounts the user belongs to
-        const userAccounts = await accountService.getUserAccounts();
+        const userAccounts = await accountService.getUserAccounts(userId);
 
         // If user has an account, use it
         if (userAccounts.length > 0) {
-          const account = userAccounts[0];
-          const isAdmin = await accountService.isUserAccountAdmin(account.id);
-          return { account, isAdmin };
+          return userAccounts[0];
         }
       }
 
@@ -41,6 +42,22 @@ export function AccountProvider({ children }: { children: ReactNode }) {
       dedupingInterval: 5000, // Prevent excessive refetching
     }
   );
+
+  // Check if the user needs onboarding when they log in
+  useEffect(() => {
+    if (isLoading || (accountData && user) || location.pathname === "/welcome")
+      return;
+
+    // Check if the user has full_name in metadata
+    const needsProfile = !user?.user_metadata?.full_name;
+    const hasNoAccount = !accountData;
+
+    // Determine if we need to redirect to welcome
+    if (needsProfile || hasNoAccount) {
+      // Redirect to welcome instead of auto-starting onboarding
+      navigate("/welcome");
+    }
+  }, [user, navigate, location.pathname, isLoading, accountData]);
 
   // Extract account and admin status
   const activeAccount = accountData?.account || null;

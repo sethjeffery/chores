@@ -2,7 +2,6 @@ import { useState, useRef, useEffect } from "react";
 import { useFamilyContext } from "../hooks/useFamilyContext";
 import ModalDialog from "../../../shared/components/ModalDialog";
 import type { FamilyMember } from "../../../types";
-import { format } from "date-fns";
 import EmojiPicker from "../../../shared/components/EmojiPicker";
 import { AVATARS, AVATAR_CATEGORIES, COLORS } from "../constants/avatars";
 import { useAccount } from "../../account/hooks/useAccount";
@@ -160,7 +159,10 @@ export default function FamilyMemberForm({
     if (!dateString) return "Not set";
     try {
       const date = new Date(dateString);
-      return format(date, "dd MMM yyyy");
+      const day = date.getDate().toString().padStart(2, "0");
+      const month = date.toLocaleString("en-US", { month: "short" });
+      const year = date.getFullYear();
+      return `${day} ${month} ${year}`;
     } catch {
       return dateString;
     }

@@ -123,23 +123,11 @@ export async function updateFamilyMember(
   id: string,
   updates: Partial<FamilyMember>
 ): Promise<void> {
-  try {
-    // Convert to database format
-    const dbUpdates = fromFamilyMember(updates);
-
-    const { error } = await supabase
-      .from('family_members')
-      .update(dbUpdates)
-      .eq("id", id);
-
-    if (error) {
-      console.error(`Error updating family member ${id}:`, error);
-      throw error;
-    }
-  } catch (error) {
-    console.error(`Error updating family member ${id}:`, error);
-    throw error;
-  }
+  await supabase
+    .from('family_members')
+    .update(fromFamilyMember(updates))
+    .eq("id", id)
+    .throwOnError();
 }
 
 /**

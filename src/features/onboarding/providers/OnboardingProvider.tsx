@@ -75,33 +75,6 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
-  // Check if the user needs onboarding when they log in
-  useEffect(() => {
-    const checkOnboardingNeeded = async () => {
-      // Skip if we're already on the welcome page or we're not logged in
-      if (!user || location.pathname === "/welcome") return;
-
-      // Check if the user has full_name in metadata
-      const needsProfile = !user.user_metadata?.full_name;
-
-      // Get account info to see if they're in an existing account
-      const { data: accountData } = await supabase
-        .from("account_users")
-        .select("*")
-        .eq("user_id", user.id);
-
-      const hasNoAccount = !accountData || accountData.length === 0;
-
-      // Determine if we need to redirect to welcome
-      if (needsProfile || hasNoAccount) {
-        // Redirect to welcome instead of auto-starting onboarding
-        navigate("/welcome");
-      }
-    };
-
-    checkOnboardingNeeded();
-  }, [user, navigate, location.pathname]);
-
   // Create the context value
   const value = useMemo(
     () => ({

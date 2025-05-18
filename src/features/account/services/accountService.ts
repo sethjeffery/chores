@@ -39,48 +39,15 @@ export function toAccountUser(record: Database["public"]["Tables"]["account_user
 /**
  * Get the current user's accounts
  */
-export async function getUserAccounts(): Promise<Account[]> {
+export async function getUserAccounts(userId: string): Promise<{ account: Account, isAdmin: boolean }[]> {
   try {
-    // Get current user
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
-      throw new Error("User not authenticated");
-    }
-
-    // Get accounts the user belongs to
-    const { data: accountUsers, error: accountUsersError } = await supabase
+    const { data = [] } = await supabase
       .from('account_users')
-      .select("account_id")
-      .eq("user_id", user.id);
+      .select('account:accounts(*), is_admin')
+      .eq("user_id", userId)
+      .throwOnError();
 
-    if (accountUsersError) {
-      console.error(
-        "Error fetching user's account associations:",
-        accountUsersError
-      );
-      throw accountUsersError;
-    }
-
-    if (!accountUsers || accountUsers.length === 0) {
-      return [];
-    }
-
-    // Get the accounts
-    const accountIds = accountUsers.map((au) => au.account_id);
-    const { data: accounts, error: accountsError } = await supabase
-      .from('accounts')
-      .select("*")
-      .in("id", accountIds);
-
-    if (accountsError) {
-      console.error("Error fetching accounts:", accountsError);
-      throw accountsError;
-    }
-
-    return (accounts || []).map(toAccount);
+    return data.map((row) => ({ account: toAccount(row.account), isAdmin: row.is_admin ?? false }));
   } catch (error) {
     console.error("Error getting user accounts:", error);
     throw error;
@@ -222,20 +189,11 @@ export async function addUserToAccount(
 export async function removeUserFromAccount(
   accountUserId: string
 ): Promise<void> {
-  try {
-    const { error } = await supabase
-      .from('account_users')
-      .delete()
-      .eq("id", accountUserId);
-
-    if (error) {
-      console.error(`Error removing account user ${accountUserId}:`, error);
-      throw error;
-    }
-  } catch (error) {
-    console.error(`Error removing account user ${accountUserId}:`, error);
-    throw error;
-  }
+  await supabase
+    .from('account_users')
+    .delete()
+    .eq("id", accountUserId)
+    .throwOnError();
 }
 
 /**
@@ -245,26 +203,11 @@ export async function updateUserAdminStatus(
   accountUserId: string,
   isAdmin: boolean
 ): Promise<void> {
-  try {
-    const { error } = await supabase
-      .from('account_users')
-      .update({ is_admin: isAdmin })
-      .eq("id", accountUserId);
-
-    if (error) {
-      console.error(
-        `Error updating admin status for account user ${accountUserId}:`,
-        error
-      );
-      throw error;
-    }
-  } catch (error) {
-    console.error(
-      `Error updating admin status for account user ${accountUserId}:`,
-      error
-    );
-    throw error;
-  }
+  await supabase
+    .from('account_users')
+    .update({ is_admin: isAdmin })
+    .eq("id", accountUserId)
+    .throwOnError();
 }
 
 /**
@@ -367,18 +310,12 @@ export async function transferUserToAccount(
         continue; // Skip deletion if we can't verify it's empty
       }
 
-      // If there are no users left, delete the account
       if (remainingUsers.length === 0) {
-        const { error: deleteError } = await supabase
+        await supabase
           .from('accounts')
           .delete()
-          .eq("id", accountUser.account_id);
-
-        if (deleteError) {
-          console.error("Error deleting empty account:", deleteError);
-        } else {
-          console.log(`Deleted empty account ${accountUser.account_id}`);
-        }
+          .eq("id", accountUser.account_id)
+          .throwOnError();
       }
     }
 

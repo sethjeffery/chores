@@ -132,20 +132,11 @@ export async function getInvitationByToken(
  * @param token The invitation token
  */
 export async function markInvitationAsUsed(token: string): Promise<void> {
-  try {
-    const { error } = await supabase
-      .from(INVITATIONS_TABLE)
-      .update({ is_used: true })
-      .eq("token", token);
-
-    if (error) {
-      console.error("Error marking invitation as used:", error);
-      throw error;
-    }
-  } catch (error) {
-    console.error("Error marking invitation as used:", error);
-    throw error;
-  }
+  await supabase
+    .from(INVITATIONS_TABLE)
+    .update({ is_used: true })
+    .eq("token", token)
+    .throwOnError();
 }
 
 /**
