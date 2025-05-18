@@ -2,7 +2,7 @@ import { useState, useRef } from "react";
 import EmojiPicker from "../../../shared/components/EmojiPicker";
 import { CHORE_ICONS, choreIconCategories } from "../constants/icons";
 import type { FamilyMember } from "../../../types";
-
+import { AVATARS } from "../../family/constants/avatars";
 // Use a lighter shade for the icon background
 const ICON_BG_COLOR = "#EEF2FF"; // light indigo background color
 
@@ -23,6 +23,30 @@ interface ChoreFormFieldsProps {
   isSubmitting?: boolean;
   onCancel?: () => void;
 }
+
+const calculateAge = (dateString: string | null) => {
+  if (!dateString) return null;
+
+  try {
+    const birthDate = new Date(dateString);
+    const today = new Date();
+
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+
+    // If birthday hasn't occurred yet this year, subtract one year
+    if (
+      monthDiff < 0 ||
+      (monthDiff === 0 && today.getDate() < birthDate.getDate())
+    ) {
+      age--;
+    }
+
+    return age;
+  } catch {
+    return null;
+  }
+};
 
 export default function ChoreFormFields({
   data,
@@ -106,19 +130,25 @@ export default function ChoreFormFields({
                   data.assigneeId === member.id ? undefined : member.id
                 )
               }
-              className={`p-2 rounded-xl flex items-center border ${
+              className={`px-1 py-1 rounded-xl flex items-center border ${
                 data.assigneeId === member.id
                   ? "border-indigo-500 bg-indigo-50"
                   : "border-gray-200 hover:border-gray-300"
               }`}
             >
-              <div
-                className="rounded-full p-1 mr-2 h-8 w-8 flex items-center justify-center text-lg"
-                style={{ backgroundColor: member.color || "#e5e7eb" }}
-              >
-                {member.avatar}
+              {member.avatar && member.avatar in AVATARS ? (
+                <img
+                  src={AVATARS[member.avatar as keyof typeof AVATARS]}
+                  alt={member.name}
+                  className="w-16 h-16 object-cover"
+                />
+              ) : null}
+              <div className="flex flex-col text-left">
+                <div className="text-lg truncate">{member.name}</div>
+                <div className="text-xs text-gray-500">
+                  {calculateAge(member.dob)} years old
+                </div>
               </div>
-              <span className="text-sm truncate">{member.name}</span>
             </button>
           ))}
           {familyMembers.length === 0 && (

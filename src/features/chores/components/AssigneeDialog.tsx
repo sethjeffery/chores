@@ -90,7 +90,17 @@ export default function AssigneeDialog({ onAssign }: AssigneeDialogProps) {
               className="p-3 bg-blue-50 hover:bg-blue-100 text-blue-800 rounded-lg transition-colors text-left font-medium flex items-center justify-between"
             >
               <span className="flex items-center gap-2">
-                {member.avatar && <span>{member.avatar}</span>}
+                {member.avatar?.startsWith("avatar") ? (
+                  <div className="w-6 h-6 rounded-full overflow-hidden">
+                    <img
+                      src={`/src/features/family/assets/avatars/${member.avatar}.png`}
+                      alt={member.name}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                ) : (
+                  member.avatar && <span>{member.avatar}</span>
+                )}
                 <span>{member.name}</span>
               </span>
               <span className="text-blue-500">→</span>

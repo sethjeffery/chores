@@ -1,106 +1,54 @@
-// Family member avatars
-export const AVATARS = [
-  // People
-  "👨", // man
-  "👩", // woman
-  "👧", // girl
-  "👦", // boy
-  "👶", // baby
-  "👴", // old man
-  "👵", // old woman
-  "🧔", // bearded person
-  "👱‍♀️", // woman with blonde hair
-  "👱", // person with blonde hair
-  "👲", // man with skullcap
-  "👳‍♀️", // woman with turban
-  "👳", // person with turban
-  "👮", // police officer
-  "👷", // construction worker
-  "💂", // guard
-  "🕵️", // detective
-  "👩‍⚕️", // woman health worker
-  "👨‍⚕️", // man health worker
-  "👩‍🌾", // woman farmer
-  "👨‍🌾", // man farmer
-  "👩‍🍳", // woman cook
-  "👨‍🍳", // man cook
-  "👩‍🎓", // woman student
-  "👨‍🎓", // man student
-  "👩‍🏫", // woman teacher
-  "👨‍🏫", // man teacher
-  "👩‍💻", // woman technologist
-  "👨‍💻", // man technologist
+import avatar01 from "../assets/avatars/avatar01.png";
+import avatar02 from "../assets/avatars/avatar02.png";
+import avatar03 from "../assets/avatars/avatar03.png";
+import avatar04 from "../assets/avatars/avatar04.png";
+import avatar05 from "../assets/avatars/avatar05.png";
+import avatar06 from "../assets/avatars/avatar06.png";
+import avatar07 from "../assets/avatars/avatar07.png";
+import avatar08 from "../assets/avatars/avatar08.png";
+import avatar09 from "../assets/avatars/avatar09.png";
+import avatar10 from "../assets/avatars/avatar10.png";
+import avatar11 from "../assets/avatars/avatar11.png";
+import avatar12 from "../assets/avatars/avatar12.png";
+import avatar13 from "../assets/avatars/avatar13.png";
+import avatar14 from "../assets/avatars/avatar14.png";
+import avatar15 from "../assets/avatars/avatar15.png";
+import avatar16 from "../assets/avatars/avatar16.png";
+import avatar17 from "../assets/avatars/avatar17.png";
+import avatar18 from "../assets/avatars/avatar18.png";
+import avatar19 from "../assets/avatars/avatar19.png";
+import avatar20 from "../assets/avatars/avatar20.png";
+import avatar21 from "../assets/avatars/avatar21.png";
+import avatar22 from "../assets/avatars/avatar22.png";
+import avatar23 from "../assets/avatars/avatar23.png";
+import avatar24 from "../assets/avatars/avatar24.png";
 
-  // Faces & Expressions
-  "😀", // grinning face
-  "😃", // grinning face with big eyes
-  "😄", // grinning face with smiling eyes
-  "😁", // beaming face with smiling eyes
-  "😆", // grinning squinting face
-  "😅", // grinning face with sweat
-  "🤣", // rolling on the floor laughing
-  "😂", // face with tears of joy
-  "🙂", // slightly smiling face
-  "🙃", // upside-down face
-  "😉", // winking face
-  "😊", // smiling face with smiling eyes
-  "😇", // smiling face with halo
-  "😎", // smiling face with sunglasses
-  "🤩", // star-struck
-  "😍", // smiling face with heart-eyes
-  "🥰", // smiling face with hearts
-  "😘", // face blowing a kiss
-  "😗", // kissing face
-  "🤬", // face with symbols on mouth
-
-  // Animals
-  "🐶", // dog face
-  "🐱", // cat face
-  "🐭", // mouse face
-  "🐹", // hamster face
-  "🐰", // rabbit face
-  "🦊", // fox face
-  "🐻", // bear face
-  "🐼", // panda face
-  "🐨", // koala face
-  "🐯", // tiger face
-  "🦁", // lion face
-  "🐮", // cow face
-  "🐷", // pig face
-  "🐸", // frog face
-  "🐵", // monkey face
-  "🐔", // chicken face
-
-  // Fantasy & Others
-  "👻", // ghost
-  "👽", // alien
-  "👾", // alien monster
-  "🤖", // robot
-  "🏍️", // motorcycle
-  "🏎️", // racing car
-  "🦄", // unicorn
-  "🦖", // t-rex dinosaur
-  "🧚", // fairy
-  "🎸", // guitar
-  "🎮", // video game
-  "🎨", // artist palette
-  "⚽", // soccer ball
-  "🏀", // basketball
-  "🍦", // ice cream
-  "🍕", // pizza
-  "❤️", // heart
-  "🌈", // rainbow
-  "🚀", // rocket
-  "🦸", // superhero
-];
-
-// Avatar categories for the emoji picker
-export const AVATAR_CATEGORIES = [
-  { name: "People", start: 0, end: 19 },
-  { name: "Faces", start: 29, end: 48 },
-  { name: "Animals", start: 49, end: 68 },
-  { name: "Fun", start: 65, end: 88 },
-];
+export const AVATARS = {
+  avatar01,
+  avatar02,
+  avatar03,
+  avatar04,
+  avatar05,
+  avatar06,
+  avatar07,
+  avatar08,
+  avatar09,
+  avatar10,
+  avatar11,
+  avatar12,
+  avatar13,
+  avatar14,
+  avatar15,
+  avatar16,
+  avatar17,
+  avatar18,
+  avatar19,
+  avatar20,
+  avatar21,
+  avatar22,
+  avatar23,
+  avatar24,
+};
 
 // Family member color options
 export const COLORS = [

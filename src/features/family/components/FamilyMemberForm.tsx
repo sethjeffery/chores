@@ -2,8 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { useFamilyContext } from "../hooks/useFamilyContext";
 import ModalDialog from "../../../shared/components/ModalDialog";
 import type { FamilyMember } from "../../../types";
-import EmojiPicker from "../../../shared/components/EmojiPicker";
-import { AVATARS, AVATAR_CATEGORIES, COLORS } from "../constants/avatars";
+import { AVATARS, COLORS } from "../constants/avatars";
 import { useAccount } from "../../account/hooks/useAccount";
 import {
   CheckIcon,
@@ -11,6 +10,7 @@ import {
   PlusIcon,
   TrashIcon,
 } from "@phosphor-icons/react";
+import AvatarPicker from "./AvatarPicker";
 
 interface FamilyMemberFormProps {
   onAddMember?: (
@@ -46,7 +46,7 @@ export default function FamilyMemberForm({
 
   // Form state
   const [name, setName] = useState("");
-  const [avatar, setAvatar] = useState(AVATARS[0]);
+  const [avatar, setAvatar] = useState("avatar01");
   const [color, setColor] = useState(COLORS[0]);
   const [dob, setDob] = useState("");
 
@@ -58,7 +58,7 @@ export default function FamilyMemberForm({
     if (!isFormOpen) {
       if (!editMode) {
         setName("");
-        setAvatar(AVATARS[0]);
+        setAvatar("avatar01");
         setColor(COLORS[0]);
         setDob("");
       }
@@ -69,7 +69,7 @@ export default function FamilyMemberForm({
   useEffect(() => {
     if (selectedMember && editMode) {
       setName(selectedMember.name);
-      setAvatar(selectedMember.avatar || AVATARS[0]);
+      setAvatar(selectedMember.avatar || "avatar01");
       setColor(selectedMember.color || COLORS[0]);
       setDob(selectedMember.dob || "");
     }
@@ -79,8 +79,11 @@ export default function FamilyMemberForm({
     setEditMode(false);
     setSelectedMember(null);
     setName("");
-    setAvatar(AVATARS[0]);
-    setColor(COLORS[0]);
+    // Set a random avatar as default when adding a new family member
+    const randomIndex = Math.floor(Math.random() * 24);
+    const randomAvatar = `avatar${String(randomIndex + 1).padStart(2, "0")}`;
+    setAvatar(randomAvatar);
+    setColor(COLORS[Math.floor(Math.random() * COLORS.length)]);
     setDob("");
     setIsFormOpen(true);
   };
@@ -89,7 +92,7 @@ export default function FamilyMemberForm({
     setEditMode(true);
     setSelectedMember(member);
     setName(member.name);
-    setAvatar(member.avatar || AVATARS[0]);
+    setAvatar(member.avatar || "avatar01");
     setColor(member.color || COLORS[0]);
     setDob(member.dob || "");
     setIsFormOpen(true);
@@ -155,19 +158,6 @@ export default function FamilyMemberForm({
     }
   };
 
-  const formatDateForDisplay = (dateString: string | null) => {
-    if (!dateString) return "Not set";
-    try {
-      const date = new Date(dateString);
-      const day = date.getDate().toString().padStart(2, "0");
-      const month = date.toLocaleString("en-US", { month: "short" });
-      const year = date.getFullYear();
-      return `${day} ${month} ${year}`;
-    } catch {
-      return dateString;
-    }
-  };
-
   const calculateAge = (dateString: string | null) => {
     if (!dateString) return null;
 
@@ -200,7 +190,7 @@ export default function FamilyMemberForm({
         )}
         <button
           onClick={handleOpenAddForm}
-          className="px-3 py-1 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition-colors text-sm flex items-center"
+          className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm flex items-center"
         >
           <PlusIcon className="h-4 w-4 mr-1" weight="bold" />
           Add Member
@@ -208,35 +198,37 @@ export default function FamilyMemberForm({
       </div>
 
       {/* List of family members */}
-      <div className="bg-white rounded-xl shadow-md overflow-hidden">
+      <div>
         {isLoading && !familyMembers?.length ? (
           <div className="p-4 text-center text-gray-500">
             Loading family members...
           </div>
         ) : familyMembers.length > 0 ? (
-          <ul className="divide-y divide-gray-200">
+          <ul className="flex flex-col gap-4">
             {familyMembers.map((member) => (
-              <li key={member.id} className="p-4 hover:bg-gray-50">
+              <li
+                key={member.id}
+                className="p-4 border-l-4 bg-white rounded-xl shadow-md overflow-hidden border"
+                style={{ borderLeftColor: member.color ?? undefined }}
+              >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center">
-                    <div
-                      className="w-10 h-10 rounded-full flex items-center justify-center text-xl mr-3"
-                      style={{ backgroundColor: member.color || "#e5e7eb" }}
-                    >
-                      {member.avatar || "👤"}
-                    </div>
+                    {member.avatar && member.avatar in AVATARS ? (
+                      <img
+                        src={AVATARS[member.avatar as keyof typeof AVATARS]}
+                        alt={member.name}
+                        className="w-16 h-16 object-cover"
+                      />
+                    ) : null}
                     <div>
-                      <h3 className="font-medium text-gray-800">
+                      <h3 className="font-medium text-gray-800 text-xl">
                         {member.name}
                       </h3>
-                      <p className="text-sm text-gray-500">
-                        {formatDateForDisplay(member.dob)}
-                        {calculateAge(member.dob) !== null && (
-                          <span className="ml-2 text-xs bg-gray-100 px-2 py-0.5 rounded-full">
-                            {calculateAge(member.dob)} years old
-                          </span>
-                        )}
-                      </p>
+                      {calculateAge(member.dob) !== null && (
+                        <p className="text-xs text-gray-600">
+                          {calculateAge(member.dob)} years old
+                        </p>
+                      )}
                     </div>
                   </div>
                   <div className="flex space-x-2">
@@ -292,11 +284,9 @@ export default function FamilyMemberForm({
             />
           </div>
 
-          <EmojiPicker
+          <AvatarPicker
             value={avatar}
             onChange={setAvatar}
-            emojiSource={AVATARS}
-            categories={AVATAR_CATEGORIES}
             label="Avatar"
             id="member-avatar"
           />

@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import type { Chore, ColumnType, FamilyMember } from "../../../types";
 import ChoreCard from "./ChoreCard";
-
+import { AVATARS } from "../../family/constants/avatars";
 interface MemberSectionProps {
   member: FamilyMember;
   columnId: ColumnType;
@@ -104,9 +104,15 @@ export default function MemberSection({
       data-drop-action="member"
       data-drop-target={member.id}
     >
-      <div className="flex items-center justify-between gap-2 mb-3 px-3 py-2">
-        <h3 className="font-semibold text-gray-700 flex items-center gap-2">
-          {member.avatar && <span>{member.avatar}</span>}
+      <div className="flex items-center justify-between gap-2 mb-3">
+        <h3 className="font-light text-gray-700 flex items-center text-xl font-fancy">
+          {member.avatar && member.avatar in AVATARS ? (
+            <img
+              src={AVATARS[member.avatar as keyof typeof AVATARS]}
+              alt={member.name}
+              className="w-12 h-12 object-cover"
+            />
+          ) : null}
           <span>{member.name}</span>
         </h3>
 
@@ -128,7 +134,7 @@ export default function MemberSection({
           )}
         </div>
       </div>
-      <div className="pl-3 space-y-3">
+      <div className="space-y-3">
         {choresByAssignee[member.id]?.length > 0 ? (
           choresByAssignee[member.id].map((chore) => (
             <ChoreCard

@@ -1,14 +1,10 @@
 import { useState } from "react";
 import { useOnboarding } from "../../hooks/useOnboarding";
 import OnboardingStepLayout from "../../components/OnboardingStepLayout";
-import EmojiPicker from "../../../../shared/components/EmojiPicker";
-import {
-  ONBOARDING_AVATARS,
-  ONBOARDING_AVATAR_CATEGORIES,
-} from "../../constants/onboardingAvatars";
-import { COLORS } from "../../../family/constants/avatars";
+import { AVATARS, COLORS } from "../../../family/constants/avatars";
 import { useFamilyContext } from "../../../family/hooks/useFamilyContext";
 import { CaretDownIcon, PlusIcon, TrashIcon } from "@phosphor-icons/react";
+import AvatarPicker from "../../../family/components/AvatarPicker";
 
 interface FamilyMemberForm {
   name: string;
@@ -20,7 +16,7 @@ interface FamilyMemberForm {
 
 const NEW_FAMILY_MEMBER = {
   name: "",
-  avatar: "👧",
+  avatar: "avatar01",
   dob: "",
   isExpanded: true,
   color: COLORS[Math.floor(Math.random() * COLORS.length)],
@@ -47,6 +43,12 @@ export default function FamilyStep() {
     const newMember = {
       ...NEW_FAMILY_MEMBER,
       color: COLORS[Math.floor(Math.random() * COLORS.length)],
+      avatar:
+        AVATARS[
+          Object.keys(AVATARS)[
+            Math.floor(Math.random() * Object.keys(AVATARS).length)
+          ] as keyof typeof AVATARS
+        ],
     };
     setFamilyMembers([...updatedMembers, newMember]);
 
@@ -162,18 +164,19 @@ export default function FamilyStep() {
             >
               {/* Member header (always visible) */}
               <div
-                className={`p-3 flex items-center ${
+                className={`py-2 px-3 flex items-center ${
                   member.isExpanded
                     ? "bg-indigo-50 border-b border-indigo-100"
                     : ""
                 }`}
               >
-                <div
-                  className="rounded-full p-2 mr-2 h-12 w-12 min-w-12 flex items-center justify-center text-xl"
-                  style={{ backgroundColor: member.color }}
-                >
-                  {member.avatar}
-                </div>
+                {member.avatar && member.avatar in AVATARS ? (
+                  <img
+                    src={AVATARS[member.avatar as keyof typeof AVATARS]}
+                    alt={member.name}
+                    className="w-16 h-16 object-cover"
+                  />
+                ) : null}
                 <input
                   type="text"
                   value={member.name}
@@ -215,13 +218,11 @@ export default function FamilyStep() {
               {member.isExpanded && (
                 <div className="p-4 bg-white border-gray-100">
                   <div className="mb-4">
-                    <EmojiPicker
+                    <AvatarPicker
                       value={member.avatar}
                       onChange={(emoji) =>
                         handleInputChange(index, "avatar", emoji)
                       }
-                      emojiSource={ONBOARDING_AVATARS}
-                      categories={ONBOARDING_AVATAR_CATEGORIES}
                       id={`member-avatar-${index}`}
                     />
                   </div>
