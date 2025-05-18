@@ -1,9 +1,9 @@
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { ChoresContext } from "../contexts/ChoresContext";
 import * as choreService from "../services/choreService";
 import { supabase } from "../../../supabase";
-import type { Chore, ColumnType } from "../../../types";
+import type { ColumnType } from "../../../types";
 import { useAccount } from "../../account/hooks/useAccount";
 import useSWR from "swr";
 import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
@@ -16,7 +16,6 @@ type DbChoreStatus = Database["public"]["Tables"]["chore_statuses"]["Row"];
 export function ChoresProvider({ children }: { children: ReactNode }) {
   const { activeAccount } = useAccount();
   const accountId = activeAccount?.id;
-  const localChangesRef = useRef(new Set<string>());
 
   const withSyncing = useCallback(<T,>(fn: () => T): T => {
     let timeout: NodeJS.Timeout | undefined;
@@ -64,26 +63,23 @@ export function ChoresProvider({ children }: { children: ReactNode }) {
     accountId ? ["chores-subscription", accountId] : null,
     () => {
       // Handler for real-time chore changes
-      const handleChoreChange = async (
+      const handleChoreChange = (
         eventType: string,
         newRecord: DbChore | null,
         oldRecord: Partial<DbChore> | null
       ) => {
-        console.log(`Chore ${eventType} event processed`);
-
-        // Get ID safely from the payload
-        const changeId = newRecord?.id || oldRecord?.id;
-
-        // Skip if this change originated from this client
-        if (!changeId || localChangesRef.current.has(changeId)) {
-          if (changeId) {
-            localChangesRef.current.delete(changeId);
-          }
-          return;
-        }
+        console.log(`Chore ${eventType} event processed:`, newRecord);
 
         mutate((current = []) => {
           if (eventType === "INSERT" && newRecord) {
+            // Check if this chore ID already exists in our list (prevent duplicates)
+            const exists = current.some((chore) => chore.id === newRecord.id);
+            if (exists) {
+              console.log("Skipping duplicate chore:", newRecord.id);
+              return current;
+            }
+
+            // This is a new insert
             return [
               ...current,
               choreService.toChore(newRecord, {
@@ -108,7 +104,7 @@ export function ChoresProvider({ children }: { children: ReactNode }) {
       };
 
       // Handler for real-time chore status changes
-      const handleChoreStatusChange = async (
+      const handleChoreStatusChange = (
         eventType: string,
         newRecord: DbChoreStatus | null,
         oldRecord: Partial<DbChoreStatus> | null
@@ -118,15 +114,7 @@ export function ChoresProvider({ children }: { children: ReactNode }) {
         // Get chore ID from the status update
         const choreId = newRecord?.chore_id || oldRecord?.chore_id;
 
-        // Skip if this change originated from this client or no chore ID
-        if (!choreId || localChangesRef.current.has(choreId)) {
-          if (choreId) {
-            localChangesRef.current.delete(choreId);
-          }
-          return;
-        }
-
-        if (eventType === "UPDATE" && newRecord) {
+        if ((eventType === "UPDATE" || eventType === "INSERT") && newRecord) {
           // Update the chore's status
           mutate((current = []) => {
             return current.map((chore) => {
@@ -155,11 +143,15 @@ export function ChoresProvider({ children }: { children: ReactNode }) {
           },
           (payload: RealtimePostgresChangesPayload<DbChore>) => {
             console.log("Realtime chore change received:", payload);
-            handleChoreChange(
-              payload.eventType,
-              payload.new as DbChore,
-              payload.old as Partial<DbChore>
-            );
+            try {
+              handleChoreChange(
+                payload.eventType,
+                payload.new as DbChore,
+                payload.old as Partial<DbChore>
+              );
+            } catch (error) {
+              console.error("Failed to handle chore change:", error);
+            }
           }
         )
         .subscribe((status) => {
@@ -181,11 +173,15 @@ export function ChoresProvider({ children }: { children: ReactNode }) {
           },
           (payload: RealtimePostgresChangesPayload<DbChoreStatus>) => {
             console.log("Realtime chore status change received:", payload);
-            handleChoreStatusChange(
-              payload.eventType,
-              payload.new as DbChoreStatus,
-              payload.old as Partial<DbChoreStatus>
-            );
+            try {
+              handleChoreStatusChange(
+                payload.eventType,
+                payload.new as DbChoreStatus,
+                payload.old as Partial<DbChoreStatus>
+              );
+            } catch (error) {
+              console.error("Failed to handle chore status change:", error);
+            }
           }
         )
         .subscribe((status) => {
@@ -217,46 +213,20 @@ export function ChoresProvider({ children }: { children: ReactNode }) {
       }
 
       try {
-        // Create temp ID for optimistic update
-        const tempId = `temp-${Date.now()}`;
+        // Persist to database first
+        const insertedChore = await withSyncing(() =>
+          choreService.addChore(chore, accountId)
+        );
 
-        // Optimistic update
-        const newChore: Chore = {
-          ...chore,
-          id: tempId,
-          createdAt: new Date().toISOString(),
-          status: {
-            choreId: tempId,
-            status: chore.status?.assignee ? "TODO" : "IDEAS",
-            assignee: chore.status?.assignee ?? null,
-            lastUpdatedAt: new Date().toISOString(),
-          },
-        };
+        // Update UI after successful insertion
+        mutate((current = []) => {
+          const exists = current.some((chore) => chore.id === insertedChore.id);
+          if (exists) return current;
+          return [...current, insertedChore];
+        }, false);
 
-        return withSyncing(async () => {
-          // Update UI immediately
-          mutate((current = []) => [...current, newChore], false);
-
-          // Persist to database
-          const insertedChore = await choreService.addChore(
-            newChore as choreService.InsertChore,
-            accountId
-          );
-
-          // Prevent duplicate updates from real-time subscription
-          localChangesRef.current.add(insertedChore.id);
-
-          // Update temporary ID with permanent one
-          mutate(
-            (current = []) =>
-              current.map((chore) =>
-                chore.id === tempId ? { ...insertedChore } : chore
-              ),
-            false
-          );
-
-          return insertedChore;
-        });
+        console.log("Added chore:", insertedChore);
+        return insertedChore;
       } catch (err) {
         console.error("Failed to add chore:", err);
         mutate();
@@ -272,9 +242,6 @@ export function ChoresProvider({ children }: { children: ReactNode }) {
       try {
         // Optimistic delete
         mutate((current) => current?.filter((chore) => chore.id !== id), false);
-
-        // Track local change
-        localChangesRef.current.add(id);
 
         // Persist deletion
         await withSyncing(() => choreService.deleteChore(id));
@@ -310,8 +277,6 @@ export function ChoresProvider({ children }: { children: ReactNode }) {
           false
         );
 
-        // Track local change
-        localChangesRef.current.add(id);
         withSyncing(() => choreService.moveChore(id, column));
       } catch (err) {
         console.error("Failed to move chore:", err);
@@ -345,9 +310,6 @@ export function ChoresProvider({ children }: { children: ReactNode }) {
             }),
           false
         );
-
-        // Track local change
-        localChangesRef.current.add(id);
 
         await withSyncing(async () => {
           const newStatus = await choreService.reassignChore(

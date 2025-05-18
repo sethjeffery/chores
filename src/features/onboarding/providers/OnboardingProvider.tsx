@@ -1,10 +1,8 @@
-import { useState, useCallback, useMemo, useEffect } from "react";
+import { useState, useCallback, useMemo } from "react";
 import type { ReactNode } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { OnboardingContext } from "../contexts/OnboardingContext";
 import type { OnboardingStep } from "../contexts/OnboardingContext";
-import { useAuth } from "../../auth/hooks/useAuth";
-import { supabase } from "../../../supabase";
 
 // Define the step order for navigation
 const STEP_ORDER: OnboardingStep[] = [
@@ -17,8 +15,6 @@ const STEP_ORDER: OnboardingStep[] = [
 
 export function OnboardingProvider({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
-  const location = useLocation();
-  const { user } = useAuth();
   const [currentStep, setCurrentStep] = useState<OnboardingStep>(null);
   const [isOnboarding, setIsOnboarding] = useState(false);
 
