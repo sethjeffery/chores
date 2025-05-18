@@ -90,7 +90,7 @@ export default function MemberSection({
 
   return (
     <div
-      className={`mb-6 rounded-lg p-0.5 ${
+      className={`mb-1 rounded-lg -mx-2 p-2 ${
         dragOverMember === member.id
           ? "bg-indigo-50 shadow-[inset_0_0_0_2px_rgba(99,102,241,0.2)]"
           : ""
@@ -104,7 +104,7 @@ export default function MemberSection({
       data-drop-action="member"
       data-drop-target={member.id}
     >
-      <div className="flex items-center justify-between gap-2 mb-3">
+      <div className="flex items-center justify-between gap-2">
         <h3 className="font-light text-gray-700 flex items-center text-xl font-fancy">
           {member.avatar && member.avatar in AVATARS ? (
             <img
@@ -117,7 +117,7 @@ export default function MemberSection({
         </h3>
 
         <div className="flex-1 flex items-center">
-          <div className="h-[1px] flex-1 bg-gray-200 mx-3"></div>
+          <div className="h-[1px] flex-1 bg-indigo-800 bg-opacity-15 mx-3"></div>
 
           {columnId === "DONE" && (
             <div
@@ -134,9 +134,9 @@ export default function MemberSection({
           )}
         </div>
       </div>
-      <div className="space-y-3">
-        {choresByAssignee[member.id]?.length > 0 ? (
-          choresByAssignee[member.id].map((chore) => (
+      {choresByAssignee[member.id]?.length > 0 ? (
+        <div className="space-y-3 mt-3">
+          {choresByAssignee[member.id].map((chore) => (
             <ChoreCard
               key={chore.id}
               chore={chore}
@@ -145,13 +145,9 @@ export default function MemberSection({
               onComplete={() => handleComplete(chore.id)}
               memberColor={memberColor}
             />
-          ))
-        ) : (
-          <p className="text-gray-400 text-xs italic py-2 bg-gray-50 rounded-lg px-3">
-            No chores yet
-          </p>
-        )}
-      </div>
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }

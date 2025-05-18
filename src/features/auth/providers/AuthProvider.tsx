@@ -21,7 +21,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     {
       revalidateOnFocus: false,
-      suspense: false,
+      suspense: true,
     }
   );
 

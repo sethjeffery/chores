@@ -55,6 +55,7 @@ export function ChoresProvider({ children }: { children: ReactNode }) {
     {
       revalidateOnFocus: false,
       dedupingInterval: 3000, // Reduce unnecessary refetches
+      suspense: true,
     }
   );
 

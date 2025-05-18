@@ -7,11 +7,15 @@ import {
   ArrowSquareOutIcon,
   CheckIcon,
   ClipboardTextIcon,
+  ArrowsClockwiseIcon,
 } from "@phosphor-icons/react";
+import { supabase } from "../../../supabase";
 
 export default function ShareManager() {
   const { activeAccount, isAdmin } = useAccount();
   const [copySuccess, setCopySuccess] = useState(false);
+  const [isRebuilding, setIsRebuilding] = useState(false);
+  const [rebuildError, setRebuildError] = useState<string | null>(null);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Clean up timeout on unmount
@@ -28,6 +32,7 @@ export default function ShareManager() {
     data: shareToken,
     error,
     isLoading,
+    mutate: mutateShareToken,
   } = useSWR(
     activeAccount && isAdmin ? `share-token-${activeAccount.id}` : null,
     async () => {
@@ -68,6 +73,58 @@ export default function ShareManager() {
       });
   };
 
+  // Rebuild share token
+  const rebuildShareToken = async () => {
+    if (!activeAccount || !isAdmin) return;
+
+    // Confirm the action
+    if (
+      !confirm(
+        "This will create a new child-friendly link. The old link will stop working. Continue?"
+      )
+    ) {
+      return;
+    }
+
+    setIsRebuilding(true);
+    setRebuildError(null);
+
+    try {
+      // Get the access token for authorization
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      const accessToken = session?.access_token;
+
+      if (!accessToken) throw new Error("No access token available");
+
+      // Call the API to rebuild the share token
+      const response = await fetch("/api/rebuild-share-token", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({ account_id: activeAccount.id }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to rebuild share token");
+      }
+
+      // Refresh the share token data
+      await mutateShareToken();
+    } catch (err) {
+      console.error("Failed to rebuild share token:", err);
+      setRebuildError(
+        err instanceof Error ? err.message : "An unknown error occurred"
+      );
+    } finally {
+      setIsRebuilding(false);
+    }
+  };
+
   if (!activeAccount || !isAdmin) return null;
 
   return (
@@ -89,7 +146,13 @@ export default function ShareManager() {
         </div>
       )}
 
-      {isLoading ? (
+      {rebuildError && (
+        <div className="bg-red-50 border-l-4 border-red-400 p-4 mb-4 rounded-md">
+          <p className="text-red-700">{rebuildError}</p>
+        </div>
+      )}
+
+      {isLoading || isRebuilding ? (
         <div className="py-4 flex justify-center">
           <div className="animate-spin h-8 w-8 border-4 border-indigo-500 border-t-transparent rounded-full"></div>
         </div>
@@ -105,7 +168,7 @@ export default function ShareManager() {
                 Your Child-friendly Link
               </h4>
 
-              <div className="mt-3 flex space-x-2">
+              <div className="mt-3 flex flex-wrap gap-2">
                 <button
                   onClick={copyShareLink}
                   className={`px-3 py-1.5 ${
@@ -139,7 +202,21 @@ export default function ShareManager() {
                   <ArrowSquareOutIcon className="h-4 w-4 mr-1" weight="bold" />
                   Open
                 </a>
+
+                <button
+                  onClick={rebuildShareToken}
+                  disabled={isRebuilding}
+                  className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded text-sm font-medium flex items-center"
+                >
+                  <ArrowsClockwiseIcon className="h-4 w-4 mr-1" weight="bold" />
+                  Rebuild Link
+                </button>
               </div>
+
+              <p className="text-sm text-gray-500 mt-2">
+                If the share link stops working, click "Rebuild Link" to create
+                a new one.
+              </p>
             </div>
 
             <div className="bg-white p-2 rounded border">

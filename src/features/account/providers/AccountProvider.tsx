@@ -40,6 +40,7 @@ export function AccountProvider({ children }: { children: ReactNode }) {
     {
       revalidateOnFocus: false,
       dedupingInterval: 5000, // Prevent excessive refetching
+      suspense: true,
     }
   );
 
