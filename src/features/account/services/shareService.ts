@@ -1,4 +1,5 @@
 import { supabase } from "../../../supabase";
+import { nanoid } from "nanoid";
 
 /**
  * Get the account's share token
@@ -38,6 +39,9 @@ export async function getShareToken(
     throw new Error("No guest user found for this account");
   }
 
+  // Generate a user-friendly share token
+  const friendlyToken = nanoid(10);
+
   // Create a new share token
   const { data: newShareToken } = await supabase
     .from("share_tokens")
@@ -45,6 +49,7 @@ export async function getShareToken(
       account_id: accountId,
       access_token: accountUsers[0].access_token ?? "",
       refresh_token: accountUsers[0].refresh_token ?? "",
+      token: friendlyToken, // Use the nanoid generated token
     })
     .select("token, access_token, refresh_token")
     .single()

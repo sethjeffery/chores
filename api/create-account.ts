@@ -3,6 +3,7 @@ import type { Database } from "../src/database.types";
 import { VercelRequest, VercelResponse } from "@vercel/node";
 import { createClient } from "@supabase/supabase-js";
 import crypto from "crypto";
+import { nanoid } from "nanoid";
 
 const supabase = createClient<Database>(
   process.env.VITE_SUPABASE_URL!,
@@ -89,15 +90,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
 
       // Add the guest user to the account with non-admin status
-      await supabase.from('account_users').insert({
-        account_id: accountData.id,
-        user_id: guestUser.id,
-        is_admin: false,
-        user_email: guestEmail,
-        user_name: `${name} Guest`,
-        access_token: guestSession?.access_token,
-        refresh_token: guestSession?.refresh_token,
-      });
+      if (guestSession) {
+        await supabase.from('account_users').insert({
+          account_id: accountData.id,
+          user_id: guestUser.id,
+          is_admin: false,
+          user_email: guestEmail,
+          user_name: `${name} Guest`,
+          access_token: guestSession.access_token,
+          refresh_token: guestSession.refresh_token,
+        });
+
+        await supabase
+          .from('share_tokens')
+          .insert({
+            account_id: accountData.id,
+            access_token: guestSession.access_token,
+            refresh_token: guestSession.refresh_token,
+            token: nanoid(10)
+          });
+      }
     }
 
     return res.status(200).json({ account: accountData });

@@ -2,9 +2,10 @@ import { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from '../src/database.types';
 import crypto from 'crypto';
+import { nanoid } from 'nanoid';
 
 // Create admin client with service role to bypass regular permissions
-const supabaseAdmin = createClient<Database>(
+const supabase = createClient<Database>(
   process.env.VITE_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
@@ -23,7 +24,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const {
     data: { user },
     error: userError
-  } = await supabaseAdmin.auth.getUser(token);
+  } = await supabase.auth.getUser(token);
 
   if (userError || !user) {
     return res.status(401).json({ error: 'Invalid or expired token' });
@@ -36,7 +37,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   // 3. Verify the user is an admin for this account
-  const { data: adminCheck, error: adminCheckError } = await supabaseAdmin
+  const { data: adminCheck, error: adminCheckError } = await supabase
     .from('account_users')
     .select('id')
     .eq('user_id', user.id)
@@ -50,7 +51,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     // 4. Get the account name for creating a new guest user
-    const { data: accountData, error: accountError } = await supabaseAdmin
+    const { data: accountData, error: accountError } = await supabase
       .from('accounts')
       .select('name')
       .eq('id', account_id)
@@ -61,7 +62,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // 5. Get the current guest user to delete
-    const { data: guestUsers, error: guestUserError } = await supabaseAdmin
+    const { data: guestUsers, error: guestUserError } = await supabase
       .from('account_users')
       .select('user_id')
       .eq('account_id', account_id)
@@ -94,7 +95,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // Fallback method using standard API (may work if service role bypasses RLS)
-    await supabaseAdmin
+    await supabase
       .from('share_tokens')
       .delete()
       .eq('account_id', account_id);
@@ -102,7 +103,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // 7. Delete existing guest user associations and users
     if (guestUsers && guestUsers.length > 0) {
       // First delete from account_users
-      await supabaseAdmin
+      await supabase
         .from('account_users')
         .delete()
         .eq('account_id', account_id)
@@ -111,7 +112,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       // Then delete the users themselves
       for (const guestUser of guestUsers) {
-        await supabaseAdmin.auth.admin.deleteUser(guestUser.user_id);
+        await supabase.auth.admin.deleteUser(guestUser.user_id);
       }
     }
 
@@ -121,7 +122,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const guestPassword = crypto.randomUUID(); // Random secure password
 
     const { data: { user: newGuestUser }, error: newGuestError } =
-      await supabaseAdmin.auth.admin.createUser({
+      await supabase.auth.admin.createUser({
         email: guestEmail,
         password: guestPassword,
         email_confirm: true,
@@ -140,7 +141,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // 9. Sign in as the new guest user to get tokens
     const { data: { session: guestSession }, error: signInError } =
-      await supabaseAdmin.auth.signInWithPassword({
+      await supabase.auth.signInWithPassword({
         email: guestEmail,
         password: guestPassword,
       });
@@ -153,7 +154,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // 10. Add the guest user to the account with tokens
-    const { error: insertUserError } = await supabaseAdmin
+    const { error: insertUserError } = await supabase
       .from('account_users')
       .insert({
         account_id: account_id,
@@ -173,6 +174,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // 11. Create a new share token using REST API to bypass RLS
+    // Generate a user-friendly token using nanoid (10 characters is a good balance)
+    const friendlyToken = nanoid(10);
+
     let newToken;
 
     try {
@@ -189,7 +193,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         body: JSON.stringify({
           account_id: account_id,
           access_token: guestSession.access_token,
-          refresh_token: guestSession.refresh_token
+          refresh_token: guestSession.refresh_token,
+          token: friendlyToken // Use the nanoid generated token
         })
       });
 
@@ -208,12 +213,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       console.error('Error with REST API, attempting standard method:', restError);
 
       // Fallback to standard method
-      const { data: insertedToken, error: insertError } = await supabaseAdmin
+      const { data: insertedToken, error: insertError } = await supabase
         .from('share_tokens')
         .insert({
           account_id: account_id,
           access_token: guestSession.access_token,
           refresh_token: guestSession.refresh_token,
+          token: friendlyToken // Use the nanoid generated token
         })
         .select('token')
         .single();

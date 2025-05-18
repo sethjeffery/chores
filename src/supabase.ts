@@ -15,7 +15,7 @@ const supabaseKey =
   import.meta.env.VITE_SUPABASE_KEY || "your-supabase-anon-key";
 
 // Check if we're in sharing mode (URL contains /shared/{token})
-const shareTokenMatch = location.href.match(/\/shared\/([a-zA-Z0-9-]+)/);
+const shareTokenMatch = location.href.match(/\/shared\/([a-zA-Z0-9_-]+)/);
 const shareToken = shareTokenMatch ? shareTokenMatch[1] : null;
 const memoryStorage = new MemoryStorage();
 
@@ -34,11 +34,11 @@ export function createSupabaseClient() {
 
 export const supabase = createSupabaseClient();
 
+// Store the original access token if using share mode
+let originalAccessToken = '';
+
 // If there's a share token in the URL, try to use it for auth
 if (shareToken) {
-  // Store the original access token if using share mode
-  let originalAccessToken = '';
-
   // Get access and refresh tokens directly to avoid circular dependency
   // with ShareService that imports supabase
   (async () => {

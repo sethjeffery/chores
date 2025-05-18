@@ -2,7 +2,7 @@ import { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from '../src/database.types';
 
-const supabaseAdmin = createClient<Database>(
+const supabase = createClient<Database>(
   process.env.VITE_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
@@ -21,7 +21,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const {
     data: { user },
     error
-  } = await supabaseAdmin.auth.getUser(token);
+  } = await supabase.auth.getUser(token);
 
   if (error || !user) {
     return res.status(401).json({ error: 'Invalid or expired token' });
@@ -38,7 +38,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (is_share_token) {
     // Handle share token update
     // First, find the share token that uses this access token
-    const { data: shareTokens, error: findError } = await supabaseAdmin
+    const { data: shareTokens, error: findError } = await supabase
       .from('share_tokens')
       .select('id, account_id')
       .eq('access_token', req.body.old_access_token || '')
@@ -49,7 +49,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // Update the share token with new credentials
-    const { error: updateShareError } = await supabaseAdmin
+    const { error: updateShareError } = await supabase
       .from('share_tokens')
       .update({
         access_token,
@@ -61,7 +61,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     updateError = updateShareError;
   } else {
     // Handle regular user token update in account_users table
-    const { error: updateUserError } = await supabaseAdmin
+    const { error: updateUserError } = await supabase
       .from('account_users')
       .update({
         access_token,

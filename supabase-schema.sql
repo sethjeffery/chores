@@ -66,7 +66,7 @@ CREATE INDEX idx_invitations_account_id ON invitations(account_id);
 CREATE TABLE share_tokens (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   account_id UUID NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
-  token UUID NOT NULL UNIQUE DEFAULT gen_random_uuid(),
+  token TEXT NOT NULL UNIQUE,
   access_token TEXT NOT NULL,
   refresh_token TEXT NOT NULL,
   created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
@@ -150,7 +150,7 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Create a dedicated API function to securely fetch a share token by its token value
-CREATE OR REPLACE FUNCTION public.get_share_token_by_token(token_param UUID)
+CREATE OR REPLACE FUNCTION public.get_share_token_by_token(token_param TEXT)
 RETURNS TABLE (
   access_token TEXT,
   refresh_token TEXT
