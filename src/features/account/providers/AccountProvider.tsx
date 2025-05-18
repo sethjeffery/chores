@@ -45,11 +45,9 @@ export function AccountProvider({ children }: { children: ReactNode }) {
 
   // Check if the user needs onboarding when they log in
   useEffect(() => {
-    if (isLoading || (accountData && user) || location.pathname === "/welcome")
-      return;
+    if (isLoading || location.pathname !== "/") return;
 
-    // Check if the user has full_name in metadata
-    const needsProfile = !user?.user_metadata?.full_name;
+    const needsProfile = user && !user?.user_metadata?.full_name;
     const hasNoAccount = !accountData;
 
     // Determine if we need to redirect to welcome
