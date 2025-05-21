@@ -117,7 +117,7 @@ export default function MemberSection({
         </h3>
 
         <div className="flex-1 flex items-center">
-          <div className="h-[1px] flex-1 bg-indigo-800 bg-opacity-15 mx-3"></div>
+          <div className="h-[1px] flex-1 bg-gradient-to-b from-[var(--gradient-start-transparent)] to-[var(--gradient-end-transparent)] mx-3"></div>
 
           {columnId === "DONE" && (
             <div

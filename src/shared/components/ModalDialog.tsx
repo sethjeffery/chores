@@ -50,7 +50,7 @@ const ModalDialog = forwardRef<HTMLDivElement, ModalDialogProps>(
     if (!isOpen) return null;
 
     return (
-      <div className="fixed inset-0 bg-gray-900 bg-opacity-75 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+      <div className="fixed inset-0 bg-gradient-to-b from-[var(--gradient-start-transparent)] to-[var(--gradient-end-transparent)] z-50 flex items-center justify-center p-4 backdrop-blur-sm">
         <div
           ref={actualRef}
           className={`bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto ${className}`}
