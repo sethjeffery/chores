@@ -23,6 +23,7 @@ export default defineConfig({
         "icon-128x128.png",
         "pocket-bunnies-head.png",
         "pocket-bunnies-clip.png",
+        "src/features/family/assets/avatars/*.png",
       ],
       manifest: {
         name: "Pocket Bunnies",
