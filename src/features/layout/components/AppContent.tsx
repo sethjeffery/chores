@@ -19,6 +19,7 @@ import AppHeader from "./AppHeader";
 import Toast from "./Toast";
 import { PlugsConnectedIcon } from "@phosphor-icons/react";
 import LoadingState from "./LoadingState";
+import clsx from "clsx";
 
 const Spinner = () => (
   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-indigo-500 mr-1" />
@@ -123,18 +124,28 @@ export default function AppContent() {
             <ChoreForm onAdd={addChore} />
           </div>
 
-          {/* Column container with enhanced card styles */}
-          <div className="column-container grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-7 pb-8">
-            {COLUMNS.map((column) => (
-              <ColumnSection
+          {/* Mobile-swipable container */}
+          <div className="column-container grid grid-cols-[calc(100vw-2rem)_calc(100vw-2rem)_calc(100vw-2rem)] md:grid-cols-[calc(66vw-2rem)_calc(66vw-2rem)_calc(66vw-2rem)] lg:grid-cols-3 pb-8 overflow-x-auto scrollbar-hide lg:overflow-visible snap-x snap-mandatory -mx-4 sm:-mx-6 md:-mx-8 lg:mx-0">
+            {COLUMNS.map((column, index) => (
+              <div
+                className={clsx(
+                  "snap-center",
+                  index === 0 && "pl-4 pr-2 sm:pl-6 md:pl-8 lg:px-0",
+                  index === COLUMNS.length - 1 &&
+                    "pl-2 pr-4 sm:pr-6 md:pr-8 lg:px-0",
+                  index !== 0 && index !== COLUMNS.length - 1 && "px-2 lg:px-0"
+                )}
                 key={column.id}
-                title={column.title}
-                columnId={column.id}
-                chores={chores}
-                onDelete={deleteChore}
-                onDrop={moveChore}
-                onReassign={reassignChore}
-              />
+              >
+                <ColumnSection
+                  title={column.title}
+                  columnId={column.id}
+                  chores={chores}
+                  onDelete={deleteChore}
+                  onDrop={moveChore}
+                  onReassign={reassignChore}
+                />
+              </div>
             ))}
           </div>
         </main>

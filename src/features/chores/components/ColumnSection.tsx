@@ -361,7 +361,10 @@ export default function ColumnSection({
   if (isLoading && columnId !== "IDEAS") {
     return (
       <div
-        className={`column-item rounded-xl bg-white p-0 border-t-4 ${columnStyle} shadow-xl h-full flex flex-col`}
+        className={clsx(
+          "column-item rounded-xl bg-white p-0 border-t-4 shadow-xl h-full flex flex-col",
+          columnStyle
+        )}
       >
         <div className={`rounded-t-lg ${headerStyle}`}>
           <h2 className="text-2xl sm:text-3xl font-bold pt-3 pb-1 px-5 text-left sm:text-center flex items-center sm:justify-center mb-0 font-fancy">
@@ -400,7 +403,7 @@ export default function ColumnSection({
         <img
           src="/pocket-bunnies-clip.png"
           alt="Pocket Bunny"
-          className="hidden md:block absolute bottom-full left-0 transform translate-x-1/2 w-32 lg:w-36 h-auto z-10 lg:left-1/2 lg:-translate-x-12 pointer-events-none"
+          className="hidden lg:block absolute bottom-full left-0 transform translate-x-1/2 w-32 lg:w-36 h-auto z-10 lg:left-1/2 lg:-translate-x-12 pointer-events-none"
         />
       )}
       <div className={`rounded-t-lg ${headerStyle}`}>

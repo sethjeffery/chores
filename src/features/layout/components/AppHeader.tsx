@@ -21,7 +21,7 @@ export default function AppHeader({
           <img
             src="/pocket-bunnies-head.png"
             alt="Pocket Bunny logo"
-            className="w-10 h-10 mr-2 md:hidden"
+            className="w-10 h-10 mr-2 lg:hidden"
           />
           Pocket Bunnies
         </h1>
