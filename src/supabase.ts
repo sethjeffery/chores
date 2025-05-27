@@ -36,6 +36,7 @@ export const supabase = createSupabaseClient();
 
 // Store the original access token if using share mode
 let originalAccessToken = '';
+let isUpdatingTokens = false; // Prevent concurrent token updates
 
 // If there's a share token in the URL, try to use it for auth
 if (shareToken) {
@@ -65,7 +66,15 @@ if (shareToken) {
   })();
 
   supabase.auth.onAuthStateChange((event, session) => {
-    if (event === 'TOKEN_REFRESHED' && session) {
+    if (event === 'TOKEN_REFRESHED' && session && !isUpdatingTokens) {
+      // Prevent concurrent token updates
+      isUpdatingTokens = true;
+
+      // Store the old access token before making the API call
+      const oldAccessToken = originalAccessToken;
+
+      console.log('Token refresh detected for share token, updating backend...');
+
       // Send updated tokens to your backend to persist
       fetch('/api/update-tokens', {
         method: 'POST',
@@ -77,13 +86,19 @@ if (shareToken) {
           access_token: session.access_token,
           refresh_token: session.refresh_token,
           is_share_token: !!shareToken,
-          old_access_token: originalAccessToken
+          old_access_token: oldAccessToken
         })
       }).then(() => {
+        console.log('Successfully updated share token in backend');
         // Update the stored original access token for next refresh
         originalAccessToken = session.access_token;
       }).catch(err => {
         console.error('Failed to update tokens:', err);
+      }).finally(() => {
+        // Reset the flag after a delay to allow the operation to complete
+        setTimeout(() => {
+          isUpdatingTokens = false;
+        }, 1000);
       });
     }
   });
