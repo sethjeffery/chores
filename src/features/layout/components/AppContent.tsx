@@ -125,7 +125,7 @@ export default function AppContent() {
           </div>
 
           {/* Mobile-swipable container */}
-          <div className="column-container grid grid-cols-[calc(100vw-2rem)_calc(100vw-2rem)_calc(100vw-2rem)] md:grid-cols-[calc(66vw-2rem)_calc(66vw-2rem)_calc(66vw-2rem)] lg:grid-cols-3 pb-8 overflow-x-auto scrollbar-hide lg:overflow-visible snap-x snap-mandatory -mx-4 sm:-mx-6 md:-mx-8 lg:mx-0">
+          <div className="column-container grid grid-cols-[calc(100vw-4rem)_calc(100vw-4rem)_calc(100vw-4rem)] md:grid-cols-[calc(66vw-2rem)_calc(66vw-2rem)_calc(66vw-2rem)] lg:grid-cols-3 pb-8 overflow-x-auto scrollbar-hide lg:overflow-visible snap-x snap-mandatory -mx-4 sm:-mx-6 md:-mx-8 lg:mx-0">
             {COLUMNS.map((column, index) => (
               <div
                 className={clsx(
